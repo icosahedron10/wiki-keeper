@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -118,8 +119,29 @@ def test_query_wiki_non_positive_top_k_returns_no_hits(wiki_root: Path):
     assert tools.query_wiki("auth", top_k=0)["hits"] == []
     assert tools.query_wiki("auth", top_k=-1)["hits"] == []
 
+
+def test_server_tool_schema_allows_zero_limits():
+    query_tool = next(t for t in server._TOOLS if t.name == "query_wiki")
+    audits_tool = next(t for t in server._TOOLS if t.name == "read_audits")
+    assert query_tool.inputSchema["properties"]["top_k"]["minimum"] == 0
+    assert audits_tool.inputSchema["properties"]["limit"]["minimum"] == 0
+
+
 def test_atomic_append_preserves_existing_content(wiki_root: Path):
     p = log_path()
     atomic_write(p, "# Header")
     atomic_append(p, "new event")
     assert p.read_text(encoding="utf-8") == "# Header\nnew event\n"
+
+
+def test_atomic_append_handles_partial_os_write(wiki_root: Path, monkeypatch: pytest.MonkeyPatch):
+    p = log_path()
+    atomic_write(p, "")
+    original_write = os.write
+
+    def _partial_write(fd: int, data: bytes) -> int:
+        return original_write(fd, data[:3])
+
+    monkeypatch.setattr("mcp_server.storage.os.write", _partial_write)
+    atomic_append(p, "partial-write-safe")
+    assert p.read_text(encoding="utf-8") == "partial-write-safe\n"

@@ -29,6 +29,7 @@ REQUIRED_SECTIONS = (
     "Key Facts",
     "Details",
     "Relationships",
+    "Sources",
     "Open Questions",
 )
 

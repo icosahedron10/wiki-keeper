@@ -39,7 +39,12 @@ def atomic_append(path: Path, line: str) -> None:
     payload = (prefix + line.rstrip("\n") + "\n").encode("utf-8")
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
     try:
-        os.write(fd, payload)
+        offset = 0
+        while offset < len(payload):
+            written = os.write(fd, payload[offset:])
+            if written <= 0:
+                raise OSError("atomic_append write returned no bytes")
+            offset += written
         os.fsync(fd)
     finally:
         os.close(fd)

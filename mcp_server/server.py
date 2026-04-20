@@ -56,7 +56,7 @@ _TOOLS: list[Tool] = [
                     "enum": ["keyword", "hybrid"],
                     "default": "keyword",
                 },
-                "top_k": {"type": "integer", "default": 5, "minimum": 1},
+                "top_k": {"type": "integer", "default": 5, "minimum": 0},
             },
             "required": ["query"],
         },

@@ -65,6 +65,19 @@ def test_schema_compliance_requires_real_headings_not_code_fences():
     assert page_is_schema_compliant(content) is False
 
 
+def test_schema_compliance_accepts_all_required_headings():
+    content = (
+        "# Example\n\n"
+        "## Summary\nx\n\n"
+        "## Key Facts\n- x\n\n"
+        "## Details\nx\n\n"
+        "## Relationships\n- [[Example]]\n\n"
+        "## Sources\n- [x](../../sources/misc/x.md)\n\n"
+        "## Open Questions\n- None.\n"
+    )
+    assert page_is_schema_compliant(content) is True
+
+
 def test_validate_skips_source_scan_when_sources_type_invalid(wiki_root):
     tools.update_knowledge(
         "modules/Auth Service",

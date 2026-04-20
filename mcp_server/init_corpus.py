@@ -21,6 +21,7 @@ Every page under `.wiki-keeper/wiki/` is markdown with these sections:
 - `## Key Facts`
 - `## Details`
 - `## Relationships`
+- `## Sources`
 - `## Open Questions`
 
 ## Frontmatter (optional)
@@ -74,6 +75,9 @@ Populate this page with repository-specific architecture knowledge.
 
 ## Relationships
 - Related to [[Repository Overview]]
+
+## Sources
+- [source.md](../../sources/misc/source.md)
 
 ## Open Questions
 - None yet.

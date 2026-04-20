@@ -35,6 +35,9 @@ Longer explanation.
 ## Relationships
 - Related to [[Other Page]]
 
+## Sources
+- [source.md](../../sources/misc/source.md)
+
 ## Open Questions
 - Question
 ```
