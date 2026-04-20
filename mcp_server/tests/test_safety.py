@@ -57,7 +57,7 @@ def test_nightly_rejects_glob_escape_before_llm(wiki_root, monkeypatch):
             "sources:\n"
             "  - ../**\n"
             "---\n"
-            "# Auth Service\n\n## Summary\nx\n\n## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n"
+            "# Auth Service\n\n## Summary\nx\n\n## Open Questions\n- None.\n"
         ),
     )
     llm = CountingLLM()

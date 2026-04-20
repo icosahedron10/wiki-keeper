@@ -82,43 +82,13 @@ _TOOLS: list[Tool] = [
         },
     ),
     Tool(
-        name="ingest_source",
-        description=(
-            "Record that a file under `.wiki-keeper/sources/` has been ingested "
-            "and return its content plus candidate wiki pages to update."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "source_path": {
-                    "type": "string",
-                    "description": "Path relative to sources/, e.g. 'prs/pr_184.md'.",
-                },
-                "context": {"type": "string"},
-            },
-            "required": ["source_path"],
-        },
-    ),
-    Tool(
-        name="propose_ingest",
-        description="Dry run of ingest_source. Returns the same payload without logging.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "source_path": {"type": "string"},
-                "context": {"type": "string"},
-            },
-            "required": ["source_path"],
-        },
-    ),
-    Tool(
         name="rebuild_index",
         description="Regenerate .wiki-keeper/wiki/index.md from the current page tree.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
         name="lint_wiki",
-        description="Check wiki health: orphans, missing sources, broken links, index drift.",
+        description="Check wiki health: orphans, broken links, and index drift.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
@@ -210,14 +180,6 @@ def _dispatch(name: str, arguments: dict[str, Any]) -> Any:
             arguments["page_name"],
             arguments["content"],
             mode=arguments.get("mode", "replace"),
-        )
-    if name == "ingest_source":
-        return tools.ingest_source(
-            arguments["source_path"], context=arguments.get("context")
-        )
-    if name == "propose_ingest":
-        return tools.propose_ingest(
-            arguments["source_path"], context=arguments.get("context")
         )
     if name == "rebuild_index":
         return tools.rebuild_index()

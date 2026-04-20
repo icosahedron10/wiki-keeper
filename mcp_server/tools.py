@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from . import audits as audits_mod
@@ -22,7 +21,7 @@ from .pages import (
     parse_page_frontmatter,
     resolve_or_plan,
 )
-from .paths import CATEGORIES, schema_path, sources_dir, safe_resolve
+from .paths import CATEGORIES
 from .storage import atomic_write, read_text
 
 
@@ -216,63 +215,6 @@ def run_nightly(budget: int = 1) -> dict[str, Any]:
         budget=budget,
         update_knowledge_fn=update_knowledge,
     )
-
-
-# ------------------------------------------------------------------ ingestion
-
-
-def _read_source(source_path: str) -> tuple[str, str]:
-    abs_path = safe_resolve(sources_dir(), source_path)
-    if not abs_path.is_file():
-        raise FileNotFoundError(f"No source at {source_path!r}")
-    return str(abs_path.relative_to(sources_dir())).replace("\\", "/"), read_text(abs_path)
-
-
-def _candidate_pages(text: str, top_k: int = 8) -> list[dict[str, Any]]:
-    snippet = " ".join(text.split()[:200])
-    if not snippet.strip():
-        return []
-    hits = search_mod.keyword_search(snippet, top_k=top_k)
-    return [h.to_dict() for h in hits]
-
-
-def _schema_reminder() -> str:
-    if schema_path().is_file():
-        return read_text(schema_path())
-    return ""
-
-
-def propose_ingest(source_path: str, context: str | None = None) -> dict[str, Any]:
-    rel, content = _read_source(source_path)
-    return {
-        "source_path": f"sources/{rel}",
-        "source_content": content,
-        "context": context,
-        "candidate_pages": _candidate_pages(content),
-        "schema": _schema_reminder(),
-        "instructions": (
-            "Dry run. Inspect candidate_pages, decide which to update or create, "
-            "then call update_knowledge per page and ingest_source to record it."
-        ),
-    }
-
-
-def ingest_source(source_path: str, context: str | None = None) -> dict[str, Any]:
-    rel, content = _read_source(source_path)
-    wikilog.append("ingest_source", "ingest", f"sources/{rel}", context or "")
-    return {
-        "source_path": f"sources/{rel}",
-        "source_content": content,
-        "context": context,
-        "candidate_pages": _candidate_pages(content),
-        "schema": _schema_reminder(),
-        "log_updated": True,
-        "instructions": (
-            "Source ingestion recorded. For each impacted concept/module/decision, "
-            "call update_knowledge. Prefer updating existing pages. Cite this "
-            f"source under '## Sources' as [{Path(rel).name}](../../sources/{rel})."
-        ),
-    }
 
 
 def lint_wiki() -> dict[str, Any]:

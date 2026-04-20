@@ -49,14 +49,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     u.add_argument("--mode", choices=["replace", "append", "create_only"], default="replace")
 
-    ing = tools_sub.add_parser("ingest")
-    ing.add_argument("source_path")
-    ing.add_argument("--context")
-
-    prop = tools_sub.add_parser("propose")
-    prop.add_argument("source_path")
-    prop.add_argument("--context")
-
     tools_sub.add_parser("rebuild-index")
     tools_sub.add_parser("lint")
 
@@ -104,10 +96,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.tool_cmd == "update":
             content = args.content if args.content is not None else sys.stdin.read()
             out = tools.update_knowledge(args.page_name, content, mode=args.mode)
-        elif args.tool_cmd == "ingest":
-            out = tools.ingest_source(args.source_path, context=args.context)
-        elif args.tool_cmd == "propose":
-            out = tools.propose_ingest(args.source_path, context=args.context)
         elif args.tool_cmd == "rebuild-index":
             out = tools.rebuild_index()
         elif args.tool_cmd == "lint":

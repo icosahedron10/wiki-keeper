@@ -2,7 +2,7 @@
 
 A persistent knowledge layer for coding agents, exposed over MCP.
 
-V1 keeps the deterministic 8-tool MCP surface and adds an optional nightly freshness workflow that audits wiki pages against host-repo files.
+V1 keeps a deterministic MCP surface and adds an optional nightly freshness workflow that audits wiki pages against host-repo files.
 
 ## Layout
 
@@ -17,13 +17,6 @@ V1 keeps the deterministic 8-tool MCP surface and adds an optional nightly fresh
 │   ├── decisions/
 │   ├── modules/
 │   └── concepts/
-├── sources/
-│   ├── architecture/
-│   ├── meetings/
-│   ├── debugging/
-│   ├── prs/
-│   ├── docs/
-│   └── misc/
 └── audits/
 ```
 
@@ -55,8 +48,6 @@ Existing deterministic tools:
 - `list_pages`
 - `query_wiki`
 - `update_knowledge`
-- `ingest_source`
-- `propose_ingest`
 - `rebuild_index`
 - `lint_wiki`
 

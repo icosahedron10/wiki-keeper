@@ -12,7 +12,7 @@ This file is the operating manual for the wiki. It is addressed to the agent tha
 
 ## What does not belong
 
-- Raw transcripts (store in `.wiki-keeper/sources/`).
+- Raw transcripts copied into the wiki body.
 - Full copied external docs.
 - Claims without source evidence or explicit uncertainty markers.
 
@@ -35,14 +35,9 @@ Longer explanation.
 ## Relationships
 - Related to [[Other Page]]
 
-## Sources
-- [evidence.md](../../sources/...)
-
 ## Open Questions
 - Question
 ```
-
-Pages without at least one entry under `## Sources` must be marked as stubs with `> stub` on the line below the H1.
 
 ## Optional frontmatter
 
@@ -58,10 +53,7 @@ sources:
 ---
 ```
 
-Two notions of sources are distinct:
-
-- Frontmatter `sources`: host-repo file globs used by nightly drift review.
-- Body `## Sources`: evidence files under `.wiki-keeper/sources/` used to support wiki claims.
+Frontmatter `sources` are host-repo file globs used by nightly drift review.
 
 Articles without frontmatter are valid and are skipped by nightly review.
 
@@ -69,12 +61,10 @@ Articles without frontmatter are valid and are skipped by nightly review.
 
 1. Every page in `.wiki-keeper/wiki/` appears in `.wiki-keeper/wiki/index.md`.
 2. Every mutation appends one line to `.wiki-keeper/wiki/log.md`.
-3. Every page has `## Sources` entries, or is marked `> stub`.
-4. Files under `.wiki-keeper/sources/` are never modified by wiki tools.
-5. File writes are atomic.
-6. All writes stay inside `.wiki-keeper/`.
-7. Host-repo files are never modified.
-8. `update_knowledge` is the only write path for wiki article content.
+3. File writes are atomic.
+4. All writes stay inside `.wiki-keeper/`.
+5. Host-repo files are never modified.
+6. `update_knowledge` is the only write path for wiki article content.
 
 ## Nightly review rules
 

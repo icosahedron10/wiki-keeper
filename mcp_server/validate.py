@@ -15,7 +15,6 @@ from .paths import (
     repo_root,
     roadmap_path,
     schema_path,
-    sources_dir,
     state_path,
     wiki_dir,
 )
@@ -30,7 +29,6 @@ REQUIRED_SECTIONS = (
     "Key Facts",
     "Details",
     "Relationships",
-    "Sources",
     "Open Questions",
 )
 
@@ -138,7 +136,6 @@ def _check_layout(report: ValidationReport) -> None:
     required_dirs = [
         corpus_root(),
         wiki_dir(),
-        sources_dir(),
         audits_dir(),
         *(wiki_dir() / c for c in CATEGORIES),
     ]

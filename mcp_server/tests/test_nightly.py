@@ -29,9 +29,6 @@ Old details.
 ## Relationships
 - Related to [[Auth Service]]
 
-## Sources
-- [pr_184_summary.md](../../sources/prs/pr_184_summary.md)
-
 ## Open Questions
 - None.
 """
@@ -50,9 +47,6 @@ Updated details.
 
 ## Relationships
 - Related to [[Auth Service]]
-
-## Sources
-- [pr_184_summary.md](../../sources/prs/pr_184_summary.md)
 
 ## Open Questions
 - None.

@@ -14,8 +14,6 @@ def wiki_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (corpus / "wiki" / "decisions").mkdir(parents=True)
     (corpus / "wiki" / "modules").mkdir(parents=True)
     (corpus / "wiki" / "concepts").mkdir(parents=True)
-    for sub in ("architecture", "debugging", "prs", "docs", "meetings", "misc"):
-        (corpus / "sources" / sub).mkdir(parents=True)
     (corpus / "audits").mkdir(parents=True)
 
     repo_schema = Path(__file__).resolve().parents[2] / ".wiki-keeper" / "schema.md"

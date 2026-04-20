@@ -14,7 +14,7 @@ def test_validate_passes_for_fresh_fixture(wiki_root):
 def test_validate_flags_bad_frontmatter(wiki_root):
     tools.update_knowledge(
         "modules/Auth Service",
-        "---\nfoo: [bar\n---\n# Auth Service\n\n## Summary\nx\n\n## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n",
+        "---\nfoo: [bar\n---\n# Auth Service\n\n## Summary\nx\n\n## Open Questions\n- None.\n",
         mode="replace",
     )
     report = tools.validate()
@@ -40,7 +40,7 @@ def test_validate_flags_unresolvable_frontmatter_sources(wiki_root):
             "---\n"
             "# Auth Service\n\n"
             "## Summary\nx\n\n"
-            "## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n"
+            "## Open Questions\n- None.\n"
         ),
         mode="replace",
     )

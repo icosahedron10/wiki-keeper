@@ -12,8 +12,10 @@ def test_init_scaffolds_and_validate(tmp_path, monkeypatch):
     assert report["ok"] is True
 
 
-def test_server_exposes_14_tools():
+def test_server_exposes_12_tools():
     names = [tool.name for tool in server._TOOLS]
-    assert len(names) == 14
+    assert len(names) == 12
     assert "validate" in names
     assert "run_review" in names
+    assert "ingest_source" not in names
+    assert "propose_ingest" not in names
