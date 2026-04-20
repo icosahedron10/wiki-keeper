@@ -145,7 +145,7 @@ _TOOLS: list[Tool] = [
             "type": "object",
             "properties": {
                 "article_id": {"type": "string"},
-                "limit": {"type": "integer", "default": 5, "minimum": 1},
+                "limit": {"type": "integer", "default": 5, "minimum": 0},
             },
             "required": ["article_id"],
         },
