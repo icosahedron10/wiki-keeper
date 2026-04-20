@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 
 from . import lint as lint_mod
 from .frontmatter import validate_frontmatter
@@ -25,12 +26,12 @@ from .storage import read_text
 
 
 REQUIRED_SECTIONS = (
-    "## Summary",
-    "## Key Facts",
-    "## Details",
-    "## Relationships",
-    "## Sources",
-    "## Open Questions",
+    "Summary",
+    "Key Facts",
+    "Details",
+    "Relationships",
+    "Sources",
+    "Open Questions",
 )
 
 
@@ -55,10 +56,23 @@ class ValidationReport:
 
 
 def page_is_schema_compliant(content: str) -> bool:
+    body = _strip_fenced_code_blocks(content)
     for section in REQUIRED_SECTIONS:
-        if section not in content:
+        if re.search(rf"^##\s+{re.escape(section)}\s*$", body, flags=re.MULTILINE) is None:
             return False
     return True
+
+
+def _strip_fenced_code_blocks(content: str) -> str:
+    lines: list[str] = []
+    in_fence = False
+    for line in content.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            lines.append(line)
+    return "\n".join(lines)
 
 
 def run() -> ValidationReport:
@@ -99,6 +113,10 @@ def run() -> ValidationReport:
 
         patterns = frontmatter.get("sources", [])
         if not patterns:
+            continue
+        if not isinstance(patterns, list) or not all(
+            isinstance(pattern, str) and pattern.strip() for pattern in patterns
+        ):
             continue
         scan = resolve_source_globs(repo_root=repo_root(), patterns=patterns)
         if scan.errors:

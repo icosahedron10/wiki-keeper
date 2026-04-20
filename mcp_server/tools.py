@@ -140,6 +140,12 @@ def query_wiki(query: str, mode: str = "keyword", top_k: int = 5) -> dict[str, A
         raise ValueError(
             f"mode {mode!r} not supported yet (semantic search is phase C)"
         )
+    if top_k <= 0:
+        return {
+            "query": query,
+            "mode": mode,
+            "hits": [],
+        }
     hits = search_mod.keyword_search(query, top_k=top_k)
     return {
         "query": query,

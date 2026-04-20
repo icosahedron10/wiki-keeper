@@ -4,7 +4,7 @@ from pathlib import Path
 
 from mcp_server import tools
 from mcp_server.paths import index_path, log_path
-from mcp_server.storage import atomic_write
+from mcp_server.storage import atomic_append, atomic_write
 
 
 PAGE_BODY = """# Auth Service
@@ -126,9 +126,32 @@ def test_query_wiki_keyword_ranks_title_matches(wiki_root: Path):
     assert titles and titles[0] == "Auth Service"
 
 
+def test_query_wiki_non_positive_top_k_returns_no_hits(wiki_root: Path):
+    tools.update_knowledge("modules/Auth Service", PAGE_BODY, mode="create_only")
+    assert tools.query_wiki("auth", top_k=0)["hits"] == []
+    assert tools.query_wiki("auth", top_k=-1)["hits"] == []
+
+
 def test_path_traversal_rejected(wiki_root: Path):
     try:
         tools.ingest_source("../schema.md")
     except ValueError:
         return
     raise AssertionError("path traversal should have been rejected")
+
+
+def test_ingest_source_multiline_context_stays_single_log_event(wiki_root: Path):
+    src = wiki_root / ".wiki-keeper" / "sources" / "prs" / "pr_201.md"
+    src.write_text("# PR 201\n\nChanged context formatting.\n", encoding="utf-8")
+    before = len(_log_lines(wiki_root))
+    tools.ingest_source("prs/pr_201.md", context="line one\nline two\r\nline three")
+    after = _log_lines(wiki_root)
+    assert len(after) == before + 1
+    assert "line one line two line three" in after[-1]
+
+
+def test_atomic_append_adds_line_without_rewriting_header(wiki_root: Path):
+    p = log_path()
+    atomic_write(p, "# Header")
+    atomic_append(p, "new event")
+    assert p.read_text(encoding="utf-8") == "# Header\nnew event\n"

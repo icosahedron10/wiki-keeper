@@ -3,6 +3,7 @@ from __future__ import annotations
 from mcp_server import tools
 from mcp_server.paths import roadmap_path
 from mcp_server.storage import atomic_write
+from mcp_server.validate import page_is_schema_compliant
 
 
 def test_validate_passes_for_fresh_fixture(wiki_root):
@@ -47,3 +48,40 @@ def test_validate_flags_unresolvable_frontmatter_sources(wiki_root):
     report = tools.validate()
     assert report["ok"] is False
     assert any("matched no files" in e for e in report["errors"])
+
+
+def test_schema_compliance_requires_real_headings_not_code_fences():
+    content = (
+        "# Example\n\n"
+        "```md\n"
+        "## Summary\n"
+        "## Key Facts\n"
+        "## Details\n"
+        "## Relationships\n"
+        "## Sources\n"
+        "## Open Questions\n"
+        "```\n"
+    )
+    assert page_is_schema_compliant(content) is False
+
+
+def test_validate_skips_source_scan_when_sources_type_invalid(wiki_root):
+    tools.update_knowledge(
+        "modules/Auth Service",
+        (
+            "---\n"
+            "id: auth-overview\n"
+            "sources: services/auth/**\n"
+            "---\n"
+            "# Auth Service\n\n"
+            "## Summary\nx\n\n"
+            "## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n"
+        ),
+        mode="replace",
+    )
+    report = tools.validate()
+    assert report["ok"] is False
+    assert any(
+        "frontmatter.sources must be a list of glob strings" in e for e in report["errors"]
+    )
+    assert not any("matched no files" in e for e in report["errors"])

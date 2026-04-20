@@ -28,8 +28,18 @@ def atomic_write(path: Path, content: str) -> None:
 
 
 def atomic_append(path: Path, line: str) -> None:
-    """Append a single line atomically by rewriting the file."""
-    existing = read_text(path) if path.exists() else ""
-    if existing and not existing.endswith("\n"):
-        existing += "\n"
-    atomic_write(path, existing + line.rstrip("\n") + "\n")
+    """Append a single line using an OS-level append write."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    prefix = ""
+    if path.exists() and path.stat().st_size > 0:
+        with path.open("rb") as existing:
+            existing.seek(-1, os.SEEK_END)
+            if existing.read(1) != b"\n":
+                prefix = "\n"
+    payload = (prefix + line.rstrip("\n") + "\n").encode("utf-8")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+    try:
+        os.write(fd, payload)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
