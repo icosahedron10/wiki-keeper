@@ -150,7 +150,7 @@ def test_ingest_source_multiline_context_stays_single_log_event(wiki_root: Path)
     assert "line one line two line three" in after[-1]
 
 
-def test_atomic_append_adds_line_without_rewriting_header(wiki_root: Path):
+def test_atomic_append_preserves_existing_content(wiki_root: Path):
     p = log_path()
     atomic_write(p, "# Header")
     atomic_append(p, "new event")
