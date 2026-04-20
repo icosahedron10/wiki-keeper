@@ -67,7 +67,7 @@ def _strip_fenced_code_blocks(content: str) -> str:
     lines: list[str] = []
     in_fence = False
     for line in content.splitlines():
-        if line.lstrip().startswith("```"):
+        if re.match(r"^[ ]{0,3}```", line):
             in_fence = not in_fence
             continue
         if not in_fence:
