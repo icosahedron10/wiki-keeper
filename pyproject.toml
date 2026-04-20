@@ -1,0 +1,30 @@
+[project]
+name = "wiki-keeper"
+version = "0.1.0"
+description = "Persistent knowledge layer for coding agents, exposed over MCP."
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.2.0",
+    "openai>=1.0.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+wiki-keeper = "mcp_server.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mcp_server*"]
+
+[tool.pytest.ini_options]
+testpaths = ["mcp_server/tests"]
+# Windows %TEMP% often denies scandir; pin a project-local dir instead.
+addopts = "--basetemp=.pytest_tmp"
