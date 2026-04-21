@@ -156,7 +156,7 @@ def collect_inventory(repo_root: Path, *, tool_checkout: Path | None = None) -> 
     root = repo_root.resolve()
     tool_prefix_parts = _tool_prefix_parts(root, tool_checkout)
     git_paths = _discover_with_git(root, tool_prefix_parts=tool_prefix_parts)
-    if git_paths is None:
+    if git_paths is None or not git_paths[0]:
         discovered, source = _discover_with_walk(root, tool_prefix_parts=tool_prefix_parts)
     else:
         discovered, source = git_paths
@@ -310,7 +310,10 @@ def _discover_with_walk(
 
 
 def _normalize_rel(path: str) -> str:
-    return path.replace("\\", "/").lstrip("./")
+    normalized = path.replace("\\", "/")
+    if normalized.startswith("./"):
+        return normalized[2:]
+    return normalized
 
 
 def _is_excluded(rel_path: str, tool_prefix_parts: tuple[str, ...] | None) -> bool:
