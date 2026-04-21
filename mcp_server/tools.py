@@ -12,6 +12,7 @@ from . import search as search_mod
 from . import state as state_mod
 from . import validate as validate_mod
 from . import wikilog
+from .init_corpus import initialize_wiki as initialize_wiki_impl
 from .pages import (
     PageRef,
     extract_wikilinks,
@@ -202,6 +203,23 @@ def rebuild_index() -> dict[str, Any]:
         f"pages={count}",
     )
     return {"pages": count, "index_updated": True}
+
+
+def initialize_wiki(
+    repo_root: str | None = None,
+    *,
+    offline: bool = False,
+    refresh_bootstrap: bool = False,
+    max_subagents: int = 12,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    return initialize_wiki_impl(
+        repo_root=repo_root,
+        offline=offline,
+        refresh_bootstrap=refresh_bootstrap,
+        max_subagents=max_subagents,
+        dry_run=dry_run,
+    )
 
 
 def run_review(article_id: str | None = None) -> dict[str, Any]:

@@ -127,6 +127,25 @@ _TOOLS: list[Tool] = [
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
+        name="initialize_wiki",
+        description=(
+            "Initialize wiki-keeper for a host repository: scaffold plus optional AI bootstrap."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_root": {
+                    "type": "string",
+                    "description": "Optional host repo root. Defaults to submodule superproject or cwd.",
+                },
+                "offline": {"type": "boolean", "default": False},
+                "refresh_bootstrap": {"type": "boolean", "default": False},
+                "max_subagents": {"type": "integer", "minimum": 1, "default": 12},
+                "dry_run": {"type": "boolean", "default": False},
+            },
+        },
+    ),
+    Tool(
         name="list_articles",
         description="List pages with frontmatter and last-audit metadata.",
         inputSchema={
@@ -225,6 +244,14 @@ def _dispatch(name: str, arguments: dict[str, Any]) -> Any:
         return tools.lint_wiki()
     if name == "validate":
         return tools.validate()
+    if name == "initialize_wiki":
+        return tools.initialize_wiki(
+            repo_root=arguments.get("repo_root"),
+            offline=bool(arguments.get("offline", False)),
+            refresh_bootstrap=bool(arguments.get("refresh_bootstrap", False)),
+            max_subagents=int(arguments.get("max_subagents", 12)),
+            dry_run=bool(arguments.get("dry_run", False)),
+        )
     raise ValueError(f"Unknown tool {name!r}")
 
 

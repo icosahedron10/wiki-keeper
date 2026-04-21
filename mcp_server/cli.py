@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import nightly as nightly_mod
 from . import server, tools
-from .init_corpus import init_corpus
+from .init_corpus import initialize_wiki
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -18,7 +18,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sub.add_parser("mcp", help="Run MCP server over stdio.")
 
     init_p = sub.add_parser("init", help="Initialize .wiki-keeper corpus.")
-    init_p.add_argument("--repo", default=".")
+    init_p.add_argument("--repo")
+    init_p.add_argument("--offline", action="store_true")
+    init_p.add_argument("--refresh-bootstrap", action="store_true")
+    init_p.add_argument("--max-subagents", type=int, default=12)
+    init_p.add_argument("--dry-run", action="store_true")
 
     val_p = sub.add_parser("validate", help="Validate corpus and lint wiki.")
     val_p.add_argument("--repo", default=".")
@@ -74,7 +78,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "init":
-        out = init_corpus(Path(args.repo))
+        out = initialize_wiki(
+            repo_root=Path(args.repo) if args.repo else None,
+            offline=bool(args.offline),
+            refresh_bootstrap=bool(args.refresh_bootstrap),
+            max_subagents=int(args.max_subagents),
+            dry_run=bool(args.dry_run),
+        )
         print(json.dumps(out, indent=2, default=str))
         return 0
 
