@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import nightly as nightly_mod
 from . import server, tools
-from .init_corpus import initialize_wiki
+from .init_corpus import init_corpus
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -18,11 +18,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sub.add_parser("mcp", help="Run MCP server over stdio.")
 
     init_p = sub.add_parser("init", help="Initialize .wiki-keeper corpus.")
-    init_p.add_argument("--repo")
-    init_p.add_argument("--offline", action="store_true")
-    init_p.add_argument("--refresh-bootstrap", action="store_true")
-    init_p.add_argument("--max-subagents", type=int, default=12)
-    init_p.add_argument("--dry-run", action="store_true")
+    init_p.add_argument("--repo", default=".")
 
     val_p = sub.add_parser("validate", help="Validate corpus and lint wiki.")
     val_p.add_argument("--repo", default=".")
@@ -53,14 +49,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     u.add_argument("--mode", choices=["replace", "append", "create_only"], default="replace")
 
-    ing = tools_sub.add_parser("ingest")
-    ing.add_argument("source_path")
-    ing.add_argument("--context")
-
-    prop = tools_sub.add_parser("propose")
-    prop.add_argument("source_path")
-    prop.add_argument("--context")
-
     tools_sub.add_parser("rebuild-index")
     tools_sub.add_parser("lint")
 
@@ -78,13 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "init":
-        out = initialize_wiki(
-            repo_root=Path(args.repo) if args.repo else None,
-            offline=bool(args.offline),
-            refresh_bootstrap=bool(args.refresh_bootstrap),
-            max_subagents=int(args.max_subagents),
-            dry_run=bool(args.dry_run),
-        )
+        out = init_corpus(Path(args.repo))
         print(json.dumps(out, indent=2, default=str))
         return 0
 
@@ -114,10 +96,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.tool_cmd == "update":
             content = args.content if args.content is not None else sys.stdin.read()
             out = tools.update_knowledge(args.page_name, content, mode=args.mode)
-        elif args.tool_cmd == "ingest":
-            out = tools.ingest_source(args.source_path, context=args.context)
-        elif args.tool_cmd == "propose":
-            out = tools.propose_ingest(args.source_path, context=args.context)
         elif args.tool_cmd == "rebuild-index":
             out = tools.rebuild_index()
         elif args.tool_cmd == "lint":

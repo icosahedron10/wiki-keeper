@@ -14,7 +14,7 @@ def test_validate_passes_for_fresh_fixture(wiki_root):
 def test_validate_flags_bad_frontmatter(wiki_root):
     tools.update_knowledge(
         "modules/Auth Service",
-        "---\nfoo: [bar\n---\n# Auth Service\n\n## Summary\nx\n\n## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n",
+        "---\nfoo: [bar\n---\n# Auth Service\n\n## Summary\nx\n\n## Open Questions\n- None.\n",
         mode="replace",
     )
     report = tools.validate()
@@ -40,7 +40,7 @@ def test_validate_flags_unresolvable_frontmatter_sources(wiki_root):
             "---\n"
             "# Auth Service\n\n"
             "## Summary\nx\n\n"
-            "## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n"
+            "## Open Questions\n- None.\n"
         ),
         mode="replace",
     )
@@ -63,6 +63,19 @@ def test_schema_compliance_requires_real_headings_not_code_fences():
         "```\n"
     )
     assert page_is_schema_compliant(content) is False
+
+
+def test_schema_compliance_accepts_all_required_headings():
+    content = (
+        "# Example\n\n"
+        "## Summary\nx\n\n"
+        "## Key Facts\n- x\n\n"
+        "## Details\nx\n\n"
+        "## Relationships\n- [[Example]]\n\n"
+        "## Sources\n- [x](../../sources/misc/x.md)\n\n"
+        "## Open Questions\n- None.\n"
+    )
+    assert page_is_schema_compliant(content) is True
 
 
 def test_validate_skips_source_scan_when_sources_type_invalid(wiki_root):

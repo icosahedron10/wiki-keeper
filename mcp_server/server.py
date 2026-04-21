@@ -56,7 +56,7 @@ _TOOLS: list[Tool] = [
                     "enum": ["keyword", "hybrid"],
                     "default": "keyword",
                 },
-                "top_k": {"type": "integer", "default": 5, "minimum": 1},
+                "top_k": {"type": "integer", "default": 5, "minimum": 0},
             },
             "required": ["query"],
         },
@@ -82,68 +82,19 @@ _TOOLS: list[Tool] = [
         },
     ),
     Tool(
-        name="ingest_source",
-        description=(
-            "Record that a file under `.wiki-keeper/sources/` has been ingested "
-            "and return its content plus candidate wiki pages to update."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "source_path": {
-                    "type": "string",
-                    "description": "Path relative to sources/, e.g. 'prs/pr_184.md'.",
-                },
-                "context": {"type": "string"},
-            },
-            "required": ["source_path"],
-        },
-    ),
-    Tool(
-        name="propose_ingest",
-        description="Dry run of ingest_source. Returns the same payload without logging.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "source_path": {"type": "string"},
-                "context": {"type": "string"},
-            },
-            "required": ["source_path"],
-        },
-    ),
-    Tool(
         name="rebuild_index",
         description="Regenerate .wiki-keeper/wiki/index.md from the current page tree.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
         name="lint_wiki",
-        description="Check wiki health: orphans, missing sources, broken links, index drift.",
+        description="Check wiki health: orphans, broken links, and index drift.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
         name="validate",
         description="Run structural, frontmatter, roadmap, and lint validations.",
         inputSchema={"type": "object", "properties": {}},
-    ),
-    Tool(
-        name="initialize_wiki",
-        description=(
-            "Initialize wiki-keeper for a host repository: scaffold plus optional AI bootstrap."
-        ),
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "repo_root": {
-                    "type": "string",
-                    "description": "Optional host repo root. Defaults to submodule superproject or cwd.",
-                },
-                "offline": {"type": "boolean", "default": False},
-                "refresh_bootstrap": {"type": "boolean", "default": False},
-                "max_subagents": {"type": "integer", "minimum": 1, "default": 12},
-                "dry_run": {"type": "boolean", "default": False},
-            },
-        },
     ),
     Tool(
         name="list_articles",
@@ -194,7 +145,7 @@ _TOOLS: list[Tool] = [
             "type": "object",
             "properties": {
                 "article_id": {"type": "string"},
-                "limit": {"type": "integer", "default": 5, "minimum": 1},
+                "limit": {"type": "integer", "default": 5, "minimum": 0},
             },
             "required": ["article_id"],
         },
@@ -230,28 +181,12 @@ def _dispatch(name: str, arguments: dict[str, Any]) -> Any:
             arguments["content"],
             mode=arguments.get("mode", "replace"),
         )
-    if name == "ingest_source":
-        return tools.ingest_source(
-            arguments["source_path"], context=arguments.get("context")
-        )
-    if name == "propose_ingest":
-        return tools.propose_ingest(
-            arguments["source_path"], context=arguments.get("context")
-        )
     if name == "rebuild_index":
         return tools.rebuild_index()
     if name == "lint_wiki":
         return tools.lint_wiki()
     if name == "validate":
         return tools.validate()
-    if name == "initialize_wiki":
-        return tools.initialize_wiki(
-            repo_root=arguments.get("repo_root"),
-            offline=bool(arguments.get("offline", False)),
-            refresh_bootstrap=bool(arguments.get("refresh_bootstrap", False)),
-            max_subagents=int(arguments.get("max_subagents", 12)),
-            dry_run=bool(arguments.get("dry_run", False)),
-        )
     raise ValueError(f"Unknown tool {name!r}")
 
 

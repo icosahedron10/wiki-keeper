@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
+import os
+import shutil
 from pathlib import Path
 
 import pytest
 
-from mcp_server import state as state_mod
-from mcp_server.init_corpus import DEFAULT_SCHEMA
 
 @pytest.fixture()
 def wiki_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -15,14 +14,13 @@ def wiki_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (corpus / "wiki" / "decisions").mkdir(parents=True)
     (corpus / "wiki" / "modules").mkdir(parents=True)
     (corpus / "wiki" / "concepts").mkdir(parents=True)
-    for sub in ("architecture", "debugging", "prs", "docs", "meetings", "misc"):
-        (corpus / "sources" / sub).mkdir(parents=True)
     (corpus / "audits").mkdir(parents=True)
 
-    (corpus / "schema.md").write_text(DEFAULT_SCHEMA + "\n", encoding="utf-8")
+    repo_schema = Path(__file__).resolve().parents[2] / ".wiki-keeper" / "schema.md"
+    shutil.copy(repo_schema, corpus / "schema.md")
     (corpus / "roadmap.md").write_text("# Wiki Review Roadmap\n", encoding="utf-8")
     (corpus / "state.json").write_text(
-        json.dumps(state_mod.DEFAULT_STATE, indent=2) + "\n",
+        '{\n  "cursor": {"article_id": null, "index": -1},\n  "last_run": null,\n  "history": []\n}\n',
         encoding="utf-8",
     )
 

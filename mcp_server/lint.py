@@ -7,7 +7,6 @@ from .pages import (
     PageRef,
     extract_wikilinks,
     find_page,
-    has_sources_section,
     is_stub,
     list_all,
 )
@@ -112,12 +111,6 @@ def _check_log() -> list[int]:
 def run() -> LintReport:
     report = LintReport()
     pages = list_all()
-    for p in pages:
-        content = read_text(p.path)
-        if is_stub(content):
-            continue
-        if not has_sources_section(content):
-            report.missing_sources.append(p.rel)
     report.not_in_index = _check_index(pages)
     report.broken_links, referenced = _check_links(pages)
     report.orphans = _check_orphans(pages, referenced)

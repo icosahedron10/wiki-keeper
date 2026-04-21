@@ -13,18 +13,10 @@ DEFAULT_STATE: dict[str, Any] = {
     "cursor": {"article_id": None, "index": -1},
     "last_run": None,
     "history": [],
-    "initialization": {
-        "completed_at": None,
-        "inventory_hash": None,
-        "manager_model": None,
-        "worker_model": None,
-        "subagent_count": 0,
-        "status": "not_started",
-    },
 }
 
 
-def normalize(state: dict[str, Any]) -> dict[str, Any]:
+def _normalize(state: dict[str, Any]) -> dict[str, Any]:
     out = deepcopy(DEFAULT_STATE)
     if isinstance(state.get("cursor"), dict):
         out["cursor"]["article_id"] = state["cursor"].get("article_id")
@@ -36,19 +28,6 @@ def normalize(state: dict[str, Any]) -> dict[str, Any]:
         out["last_run"] = state["last_run"]
     if isinstance(state.get("history"), list):
         out["history"] = state["history"]
-    if isinstance(state.get("initialization"), dict):
-        init = state["initialization"]
-        out["initialization"]["completed_at"] = init.get("completed_at")
-        out["initialization"]["inventory_hash"] = init.get("inventory_hash")
-        out["initialization"]["manager_model"] = init.get("manager_model")
-        out["initialization"]["worker_model"] = init.get("worker_model")
-        try:
-            out["initialization"]["subagent_count"] = int(init.get("subagent_count", 0))
-        except (TypeError, ValueError):
-            out["initialization"]["subagent_count"] = 0
-        status = init.get("status")
-        if isinstance(status, str) and status.strip():
-            out["initialization"]["status"] = status.strip()
     return out
 
 
@@ -62,11 +41,11 @@ def load() -> dict[str, Any]:
         raise ValueError(f"Invalid JSON in {path}: {exc}") from exc
     if not isinstance(raw, dict):
         raise ValueError("state.json must contain a JSON object")
-    return normalize(raw)
+    return _normalize(raw)
 
 
 def save(state: dict[str, Any]) -> None:
-    normalized = normalize(state)
+    normalized = _normalize(state)
     atomic_write(state_path(), json.dumps(normalized, indent=2) + "\n")
 
 
@@ -84,7 +63,7 @@ def record_run(
     date: str | None = None,
 ) -> dict[str, Any]:
     date = date or now_date()
-    normalized = normalize(state)
+    normalized = _normalize(state)
     normalized["cursor"] = {"article_id": article_id, "index": index}
     normalized["last_run"] = {
         "date": date,

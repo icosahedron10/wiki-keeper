@@ -12,7 +12,7 @@ def test_load_entries_parses_bullets_and_dedupes(wiki_root):
     )
     tools.update_knowledge(
         "modules/Auth Service",
-        "# Auth Service\n\n## Summary\nx\n\n## Sources\n- [x](../../sources/prs/pr_184_summary.md)\n",
+        "# Auth Service\n\n## Summary\nx\n\n## Open Questions\n- None.\n",
         mode="replace",
     )
     entries = roadmap.load_entries()

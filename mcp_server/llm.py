@@ -96,48 +96,6 @@ class LLMClient:
         )
         return _parse_json_object(text)
 
-    def complete_json_schema(
-        self,
-        *,
-        system_prompt: str,
-        user_prompt: str,
-        model: str,
-        reasoning: str,
-        schema_name: str,
-        schema: dict[str, Any],
-    ) -> dict[str, Any]:
-        client = self._openai_client()
-        if hasattr(client, "complete_json_schema"):
-            return client.complete_json_schema(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                model=model,
-                reasoning=reasoning,
-                schema_name=schema_name,
-                schema=schema,
-            )
-        response = client.responses.create(
-            model=model,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            reasoning={"effort": reasoning},
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": schema_name,
-                    "strict": True,
-                    "schema": schema,
-                }
-            },
-        )
-        parsed = _response_parsed_json(response)
-        if parsed is not None:
-            return parsed
-        text = _response_text(response)
-        return _parse_json_object(text)
-
 
 def _response_text(response: Any) -> str:
     if isinstance(response, dict):
@@ -163,20 +121,6 @@ def _response_text(response: Any) -> str:
                 if kind in {"output_text", "text"} and isinstance(text, str):
                     chunks.append(text)
     return "\n".join(chunks).strip()
-
-
-def _response_parsed_json(response: Any) -> dict[str, Any] | None:
-    output = response.get("output", []) if isinstance(response, dict) else getattr(response, "output", [])
-    for item in output or []:
-        content = item.get("content") if isinstance(item, dict) else getattr(item, "content", [])
-        for part in content or []:
-            if isinstance(part, dict):
-                parsed = part.get("parsed")
-            else:
-                parsed = getattr(part, "parsed", None)
-            if isinstance(parsed, dict):
-                return parsed
-    return None
 
 
 def _parse_json_object(text: str) -> dict[str, Any]:

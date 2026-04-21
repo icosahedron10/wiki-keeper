@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 CATEGORIES = ("decisions", "modules", "concepts")
-SOURCE_FOLDERS = ("architecture", "meetings", "debugging", "prs", "docs", "misc")
 
 
 def repo_root() -> Path:
@@ -29,10 +28,6 @@ def corpus_root() -> Path:
 
 def wiki_dir() -> Path:
     return corpus_root() / "wiki"
-
-
-def sources_dir() -> Path:
-    return corpus_root() / "sources"
 
 
 def index_path() -> Path:

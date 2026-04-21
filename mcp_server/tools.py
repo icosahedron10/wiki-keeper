@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from . import audits as audits_mod
@@ -12,7 +11,6 @@ from . import search as search_mod
 from . import state as state_mod
 from . import validate as validate_mod
 from . import wikilog
-from .init_corpus import initialize_wiki as initialize_wiki_impl
 from .pages import (
     PageRef,
     extract_wikilinks,
@@ -23,7 +21,7 @@ from .pages import (
     parse_page_frontmatter,
     resolve_or_plan,
 )
-from .paths import CATEGORIES, schema_path, sources_dir, safe_resolve
+from .paths import CATEGORIES
 from .storage import atomic_write, read_text
 
 
@@ -205,23 +203,6 @@ def rebuild_index() -> dict[str, Any]:
     return {"pages": count, "index_updated": True}
 
 
-def initialize_wiki(
-    repo_root: str | None = None,
-    *,
-    offline: bool = False,
-    refresh_bootstrap: bool = False,
-    max_subagents: int = 12,
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    return initialize_wiki_impl(
-        repo_root=repo_root,
-        offline=offline,
-        refresh_bootstrap=refresh_bootstrap,
-        max_subagents=max_subagents,
-        dry_run=dry_run,
-    )
-
-
 def run_review(article_id: str | None = None) -> dict[str, Any]:
     return nightly_mod.run_review(
         article_id=article_id,
@@ -234,63 +215,6 @@ def run_nightly(budget: int = 1) -> dict[str, Any]:
         budget=budget,
         update_knowledge_fn=update_knowledge,
     )
-
-
-# ------------------------------------------------------------------ ingestion
-
-
-def _read_source(source_path: str) -> tuple[str, str]:
-    abs_path = safe_resolve(sources_dir(), source_path)
-    if not abs_path.is_file():
-        raise FileNotFoundError(f"No source at {source_path!r}")
-    return str(abs_path.relative_to(sources_dir())).replace("\\", "/"), read_text(abs_path)
-
-
-def _candidate_pages(text: str, top_k: int = 8) -> list[dict[str, Any]]:
-    snippet = " ".join(text.split()[:200])
-    if not snippet.strip():
-        return []
-    hits = search_mod.keyword_search(snippet, top_k=top_k)
-    return [h.to_dict() for h in hits]
-
-
-def _schema_reminder() -> str:
-    if schema_path().is_file():
-        return read_text(schema_path())
-    return ""
-
-
-def propose_ingest(source_path: str, context: str | None = None) -> dict[str, Any]:
-    rel, content = _read_source(source_path)
-    return {
-        "source_path": f"sources/{rel}",
-        "source_content": content,
-        "context": context,
-        "candidate_pages": _candidate_pages(content),
-        "schema": _schema_reminder(),
-        "instructions": (
-            "Dry run. Inspect candidate_pages, decide which to update or create, "
-            "then call update_knowledge per page and ingest_source to record it."
-        ),
-    }
-
-
-def ingest_source(source_path: str, context: str | None = None) -> dict[str, Any]:
-    rel, content = _read_source(source_path)
-    wikilog.append("ingest_source", "ingest", f"sources/{rel}", context or "")
-    return {
-        "source_path": f"sources/{rel}",
-        "source_content": content,
-        "context": context,
-        "candidate_pages": _candidate_pages(content),
-        "schema": _schema_reminder(),
-        "log_updated": True,
-        "instructions": (
-            "Source ingestion recorded. For each impacted concept/module/decision, "
-            "call update_knowledge. Prefer updating existing pages. Cite this "
-            f"source under '## Sources' as [{Path(rel).name}](../../sources/{rel})."
-        ),
-    }
 
 
 def lint_wiki() -> dict[str, Any]:
