@@ -311,6 +311,8 @@ def _discover_with_walk(
 
 def _normalize_rel(path: str) -> str:
     normalized = path.replace("\\", "/")
+    if normalized == ".":
+        return ""
     if normalized.startswith("./"):
         return normalized[2:]
     return normalized

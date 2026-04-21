@@ -4,6 +4,7 @@ import contextlib
 import json
 import os
 import subprocess
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
@@ -68,6 +69,8 @@ DEFAULT_ROADMAP = """# Wiki Review Roadmap
 
 # One article id per line, ordered by priority.
 """
+
+_MAX_AUDIT_COLLISION_ATTEMPTS = 10_000
 
 
 def init_corpus(
@@ -391,7 +394,7 @@ def _write_if_missing(repo_root: Path, rel: str, content: str, created: list[str
 def _load_state(repo_root: Path) -> dict[str, Any]:
     path = repo_root / ".wiki-keeper" / "state.json"
     if not path.exists():
-        return json.loads(json.dumps(state_mod.DEFAULT_STATE))
+        return deepcopy(state_mod.DEFAULT_STATE)
     raw = json.loads(read_text(path))
     if not isinstance(raw, dict):
         raise ValueError("state.json must contain an object")
@@ -453,7 +456,7 @@ def _next_init_audit_path(repo_root: Path) -> Path:
     candidate = base / f"initialization-{stamp}.md"
     if not candidate.exists():
         return candidate
-    for idx in range(2, 10_000):
+    for idx in range(2, _MAX_AUDIT_COLLISION_ATTEMPTS):
         maybe = base / f"initialization-{stamp}-{idx:02d}.md"
         if not maybe.exists():
             return maybe
