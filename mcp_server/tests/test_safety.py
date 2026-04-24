@@ -34,6 +34,9 @@ class CountingLLM:
             "rationale": "test",
         }
 
+    def complete_json_schema(self, **kwargs):  # noqa: ARG002
+        return self.complete_json(**kwargs)
+
 
 def _seed(wiki_root):
     (wiki_root / "services" / "auth").mkdir(parents=True, exist_ok=True)

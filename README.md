@@ -32,13 +32,21 @@ Python 3.10+ required.
 
 ```sh
 wiki-keeper mcp
-wiki-keeper init --repo .
+wiki-keeper init --repo . --offline
+wiki-keeper init --repo . --online --max-subagents 8
 wiki-keeper validate --repo .
-wiki-keeper run-nightly --repo . --budget 1
+wiki-keeper run-nightly --repo . --budget 4 --json-output .wiki-keeper/nightly-result.json
 wiki-keeper tools list --repo .
 ```
 
 `wiki-keeper` without a subcommand is intentionally invalid in V1.
+
+`init` accepts `--dry-run`, `--refresh-bootstrap`, `--max-subagents N`, and
+`--since <sha>`. By default it records the current git `HEAD` as the nightly
+baseline.
+
+`run-nightly` accepts `--since <sha>`, `--until <sha>`, `--dry-run`, and
+`--json-output <path>`.
 
 ## MCP tools
 
@@ -51,28 +59,37 @@ Existing deterministic tools:
 - `rebuild_index`
 - `lint_wiki`
 
+`ingest_source` and `propose_ingest` are intentionally not V1 production tools;
+they are documented as future V1.1 work after the commit-driven GitHub path is
+stable.
+
 New V1 tools:
 
 - `validate`
 - `list_articles`
 - `next_review`
 - `run_review`
+- `run_nightly`
 - `read_article`
 - `read_audits`
 
 ## Nightly workflow
 
-`run-nightly` and `run_review` do:
+`run-nightly` is commit-driven:
 
 1. Validate corpus.
-2. Check `OPENAI_API_KEY` before any model call.
-3. Select target article from roadmap/state.
-4. Resolve frontmatter `sources` globs against host repo root (read-only, capped at 200 files / 1 MB).
-5. Run two reader calls (`gpt-5-nano` by default).
-6. Run orchestrator call (`gpt-5-mini` by default).
-7. Write audit note to `.wiki-keeper/audits/YYYY-MM-DD/`.
-8. Apply patch only if confidence is `high`, through `update_knowledge`.
-9. Update `.wiki-keeper/state.json`.
+2. Compute `.wiki-keeper/state.json` `git.last_processed_commit..HEAD`.
+3. Collect changed paths and diffs from git.
+4. Map changed paths to articles through frontmatter `sources`.
+5. Write audit-only notes when no article maps cleanly.
+6. For mapped articles, run two reader calls (`gpt-5-nano` by default).
+7. Run the strict-schema orchestrator call (`gpt-5-nano` by default).
+8. Write audit notes to `.wiki-keeper/audits/YYYY-MM-DD/`.
+9. Apply patches only if confidence is `high`, through `update_knowledge`.
+10. Update `.wiki-keeper/state.json` git run history.
+
+`run_review` remains available for one explicit article or the next roadmap
+entry. It uses the same validation, audit, and patch policy.
 
 Model defaults can be overridden:
 
@@ -80,6 +97,16 @@ Model defaults can be overridden:
 - `WIKI_KEEPER_READER_MODEL`
 - `WIKI_KEEPER_ORCHESTRATOR_REASONING`
 - `WIKI_KEEPER_READER_REASONING`
+
+## GitHub Actions
+
+The repo ships a composite action at
+`.github/actions/wiki-keeper-nightly/action.yml` and a host workflow template at
+`docs/workflows/wiki-keeper-nightly.yml`. The workflow needs `OPENAI_API_KEY`,
+`contents: write`, `pull-requests: write`, and checkout `fetch-depth: 0`.
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for monorepo installation and
+release checks.
 
 ## AGENTS snippet
 

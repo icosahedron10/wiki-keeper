@@ -4,5 +4,19 @@
     "index": -1
   },
   "last_run": null,
-  "history": []
+  "history": [],
+  "git": {
+    "last_processed_commit": "c6951bcdfc91a56333a85d8f0a61ab69fde27249",
+    "last_seen_commit": "c6951bcdfc91a56333a85d8f0a61ab69fde27249",
+    "default_branch": "main",
+    "runs": []
+  },
+  "initialization": {
+    "completed_at": null,
+    "inventory_hash": null,
+    "manager_model": null,
+    "worker_model": null,
+    "subagent_count": 0,
+    "status": "not_started"
+  }
 }

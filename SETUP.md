@@ -1,5 +1,9 @@
 Below is an iterated version of your plan in a more stripped-down, pragmatic style. I kept your core idea intact, but made it more concrete, more operational, and more biased toward implementation details and failure modes.
 
+Implementation note: V1 production automation is now commit-driven through
+`wiki-keeper run-nightly` and GitHub Actions. `ingest_source` and
+`propose_ingest` remain design targets for V1.1 rather than shipped V1 tools.
+
 # SRD: Wiki-MCP
 
 **A persistent knowledge layer for coding agents**

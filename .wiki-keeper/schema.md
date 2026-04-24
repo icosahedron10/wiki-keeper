@@ -42,6 +42,10 @@ Longer explanation.
 - Question
 ```
 
+Non-stub pages must include every required heading and at least one list item
+under `## Sources`. Stub pages must place `> stub` directly below the H1 and may
+omit `## Sources` until evidence exists.
+
 ## Optional frontmatter
 
 Articles that opt into nightly review can declare host-repo source globs:
@@ -56,7 +60,8 @@ sources:
 ---
 ```
 
-Frontmatter `sources` are host-repo file globs used by nightly drift review.
+Frontmatter `sources` are host-repo file globs used by commit-driven nightly
+drift review. Nightly maps git changed paths to articles through these globs.
 
 Articles without frontmatter are valid and are skipped by nightly review.
 
@@ -72,9 +77,10 @@ Articles without frontmatter are valid and are skipped by nightly review.
 ## Nightly review rules
 
 - Validate corpus before model calls.
-- Fail early if `OPENAI_API_KEY` is missing.
-- Resolve frontmatter source globs read-only against host repo root.
-- Enforce caps: max 200 files and 1 MB aggregate source payload.
+- Compute `git.last_processed_commit..HEAD` and inspect git diffs as evidence.
+- Write audit-only notes when changed paths do not map to article frontmatter.
+- Fail early if `OPENAI_API_KEY` is missing and a mapped article needs model review.
 - Apply orchestrator patch only when confidence is `high`.
 - Patch content must satisfy required wiki structure before write.
 - Always produce an audit note under `.wiki-keeper/audits/YYYY-MM-DD/`.
+- Manual source ingestion is deferred; V1 production runs are commit-driven.

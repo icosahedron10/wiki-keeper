@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
-from . import index as wiki_index
+from . import git_delta, index as wiki_index
 from . import state as state_mod
 from . import wikilog
 from .init_bootstrap import (
@@ -54,7 +54,7 @@ sources:
 ---
 ```
 
-Frontmatter `sources` are host-repo globs used by nightly review.
+Frontmatter `sources` are host-repo globs used by commit-driven nightly review.
 Body `## Sources` entries are evidence files under `.wiki-keeper/sources/` or host repo inventory paths.
 
 ## Invariants
@@ -63,6 +63,12 @@ Body `## Sources` entries are evidence files under `.wiki-keeper/sources/` or ho
 2. Host-repo files are read-only.
 3. `update_knowledge` is the only article write path after initialization.
 4. Every mutation appends one line to `.wiki-keeper/wiki/log.md`.
+
+## Nightly review
+
+Nightly runs compare `git.last_processed_commit..HEAD`, map changed paths to
+article frontmatter `sources`, and write audit-only notes when no article maps.
+Manual source ingestion is deferred until after the V1 commit-driven workflow.
 """
 
 DEFAULT_ROADMAP = """# Wiki Review Roadmap
@@ -80,6 +86,7 @@ def init_corpus(
     refresh_bootstrap: bool = False,
     max_subagents: int = 12,
     dry_run: bool = False,
+    since: str | None = None,
     llm_client: LLMClient | None = None,
     model_config: InitModelConfig | None = None,
 ) -> dict[str, Any]:
@@ -89,6 +96,7 @@ def init_corpus(
         refresh_bootstrap=refresh_bootstrap,
         max_subagents=max_subagents,
         dry_run=dry_run,
+        since=since,
         llm_client=llm_client,
         model_config=model_config,
     )
@@ -101,6 +109,7 @@ def initialize_wiki(
     refresh_bootstrap: bool = False,
     max_subagents: int = 12,
     dry_run: bool = False,
+    since: str | None = None,
     llm_client: LLMClient | None = None,
     model_config: InitModelConfig | None = None,
     cwd: Path | None = None,
@@ -109,6 +118,7 @@ def initialize_wiki(
     resolved_root = detect_host_repo_root(explicit_repo=repo_root, cwd=cwd, git_runner=git_runner)
     model_config = model_config or InitModelConfig.from_env()
     scaffold = _plan_or_apply_scaffold(resolved_root, dry_run=dry_run)
+    git_baseline = _detect_git_baseline(resolved_root, since=since)
     inventory = collect_inventory(
         resolved_root, tool_checkout=Path(__file__).resolve().parents[1]
     )
@@ -130,6 +140,7 @@ def initialize_wiki(
             "subagent_count": int(init_state.get("subagent_count", 0) or 0),
             "manager_model": init_state.get("manager_model"),
             "worker_model": init_state.get("worker_model"),
+            "git": current_state.get("git", {}),
             "dry_run": False,
         }
 
@@ -154,6 +165,7 @@ def initialize_wiki(
             bootstrap=bootstrap,
             offline=offline,
             refresh_bootstrap=refresh_bootstrap,
+            git_baseline=git_baseline,
         )
 
     write_result = _apply_bootstrap(
@@ -161,6 +173,7 @@ def initialize_wiki(
         bootstrap=bootstrap,
         inventory=inventory,
         refresh_bootstrap=refresh_bootstrap,
+        git_baseline=git_baseline,
     )
 
     return {
@@ -179,6 +192,7 @@ def initialize_wiki(
         "open_questions": bootstrap.open_questions,
         "truncated_areas": bootstrap.truncated_areas,
         "scaffold": scaffold,
+        "git": write_result["git"],
         "dry_run": False,
     }
 
@@ -217,6 +231,16 @@ def _run_git_capture(command: list[str], cwd: Path) -> str | None:
     return (proc.stdout or "").strip()
 
 
+def _detect_git_baseline(repo_root: Path, *, since: str | None) -> dict[str, str | None]:
+    commit = since.strip() if isinstance(since, str) and since.strip() else None
+    if commit is None:
+        commit = git_delta.current_head(repo_root)
+    return {
+        "commit": commit,
+        "default_branch": git_delta.default_branch(repo_root),
+    }
+
+
 def _dry_run_payload(
     *,
     root: Path,
@@ -225,6 +249,7 @@ def _dry_run_payload(
     bootstrap: BootstrapResult,
     offline: bool,
     refresh_bootstrap: bool,
+    git_baseline: dict[str, str | None],
 ) -> dict[str, Any]:
     return {
         "initialized": False,
@@ -233,6 +258,7 @@ def _dry_run_payload(
         "corpus_root": str(root / ".wiki-keeper"),
         "offline": offline,
         "refresh_bootstrap": refresh_bootstrap,
+        "git": git_baseline,
         "inventory_hash": inventory.inventory_hash,
         "inventory_totals": inventory.totals,
         "scaffold": scaffold,
@@ -292,6 +318,7 @@ def _apply_bootstrap(
     bootstrap: BootstrapResult,
     inventory: MonorepoInventory,
     refresh_bootstrap: bool,
+    git_baseline: dict[str, str | None],
 ) -> dict[str, Any]:
     corpus = repo_root / ".wiki-keeper"
     existing_entries = _read_roadmap_entries(corpus / "roadmap.md")
@@ -319,6 +346,11 @@ def _apply_bootstrap(
         "subagent_count": int(bootstrap.subagent_count),
         "status": "completed",
     }
+    updated_state = state_mod.set_git_baseline(
+        updated_state,
+        commit=git_baseline.get("commit"),
+        default_branch=git_baseline.get("default_branch"),
+    )
     writes[safe_resolve(corpus, "state.json")] = json.dumps(updated_state, indent=2) + "\n"
 
     audit_path = _next_init_audit_path(repo_root)
@@ -347,6 +379,7 @@ def _apply_bootstrap(
         "skipped_pages": sorted(skipped_pages),
         "audit_path": audit_rel,
         "roadmap_entries": merged_roadmap,
+        "git": updated_state.get("git", {}),
     }
 
 

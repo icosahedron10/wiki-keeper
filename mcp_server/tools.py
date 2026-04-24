@@ -210,9 +210,17 @@ def run_review(article_id: str | None = None) -> dict[str, Any]:
     )
 
 
-def run_nightly(budget: int = 1) -> dict[str, Any]:
+def run_nightly(
+    budget: int = 1,
+    since: str | None = None,
+    until: str | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
     return nightly_mod.run_nightly(
         budget=budget,
+        since=since,
+        until=until,
+        dry_run=dry_run,
         update_knowledge_fn=update_knowledge,
     )
 

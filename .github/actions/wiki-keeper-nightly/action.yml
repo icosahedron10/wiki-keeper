@@ -1,0 +1,106 @@
+name: Wiki Keeper Nightly
+description: Run wiki-keeper against git deltas and open or update a maintenance PR.
+
+inputs:
+  package-dir:
+    description: Path to the wiki-keeper Python package checkout.
+    default: .
+  repo:
+    description: Host repository root containing .wiki-keeper/.
+    default: .
+  branch:
+    description: Maintenance branch to push.
+    default: wiki-keeper/nightly
+  base-branch:
+    description: Pull request base branch.
+    required: true
+  budget:
+    description: Maximum mapped articles to review in one run.
+    default: "4"
+  python-version:
+    description: Python version for the action runtime.
+    default: "3.12"
+  openai-api-key:
+    description: OpenAI API key used for mapped article reviews.
+    required: true
+  github-token:
+    description: GitHub token with contents:write and pull-requests:write.
+    required: true
+  reader-model:
+    description: Model for reader/scan work.
+    default: gpt-5-nano
+  orchestrator-model:
+    description: Model for final patch decisions.
+    default: gpt-5-nano
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install wiki-keeper
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e "${{ inputs.package-dir }}"
+
+    - name: Prepare maintenance branch
+      shell: bash
+      run: git checkout -B "${{ inputs.branch }}"
+
+    - name: Run nightly
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        WIKI_KEEPER_READER_MODEL: ${{ inputs.reader-model }}
+        WIKI_KEEPER_ORCHESTRATOR_MODEL: ${{ inputs.orchestrator-model }}
+      run: |
+        mkdir -p "${{ inputs.repo }}/.wiki-keeper"
+        wiki-keeper run-nightly \
+          --repo "${{ inputs.repo }}" \
+          --budget "${{ inputs.budget }}" \
+          --json-output "${{ inputs.repo }}/.wiki-keeper/nightly-result.json"
+
+    - name: Commit and push wiki updates
+      id: commit
+      shell: bash
+      run: |
+        git config user.name "wiki-keeper[bot]"
+        git config user.email "wiki-keeper[bot]@users.noreply.github.com"
+        git add "${{ inputs.repo }}/.wiki-keeper"
+        if git diff --cached --quiet; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        git commit -m "chore: update wiki keeper nightly"
+        git push --force-with-lease origin "${{ inputs.branch }}"
+        echo "changed=true" >> "$GITHUB_OUTPUT"
+
+    - name: Open or update pull request
+      if: steps.commit.outputs.changed == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        title="chore: update wiki keeper nightly"
+        body_file="$(mktemp)"
+        {
+          echo "Automated wiki-keeper nightly update."
+          echo
+          echo "Branch: \`${{ inputs.branch }}\`"
+          echo "Budget: \`${{ inputs.budget }}\`"
+          echo
+          echo "See \`${{ inputs.repo }}/.wiki-keeper/nightly-result.json\` for run metadata."
+        } > "$body_file"
+
+        if gh pr view "${{ inputs.branch }}" --json number >/dev/null 2>&1; then
+          gh pr edit "${{ inputs.branch }}" --title "$title" --body-file "$body_file"
+        else
+          gh pr create \
+            --base "${{ inputs.base-branch }}" \
+            --head "${{ inputs.branch }}" \
+            --title "$title" \
+            --body-file "$body_file"
+        fi

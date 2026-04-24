@@ -5,7 +5,7 @@ import re
 
 from . import lint as lint_mod
 from .frontmatter import validate_frontmatter
-from .pages import list_all, parse_page_frontmatter
+from .pages import has_sources_section, is_stub, list_all, parse_page_frontmatter
 from .paths import (
     CATEGORIES,
     audits_dir,
@@ -56,10 +56,30 @@ class ValidationReport:
 
 def page_is_schema_compliant(content: str) -> bool:
     body = _strip_fenced_code_blocks(content)
+    if missing_required_sections(body, allow_stub_sources=True):
+        return False
+    return is_stub(body) or has_sources_section(body)
+
+
+def missing_required_sections(
+    content: str, *, allow_stub_sources: bool = True
+) -> list[str]:
+    body = _strip_fenced_code_blocks(content)
+    sections: tuple[str, ...] = REQUIRED_SECTIONS
+    if allow_stub_sources and is_stub(body):
+        sections = tuple(
+            section for section in REQUIRED_SECTIONS if section != "Sources"
+        )
+    missing: list[str] = []
     for section in REQUIRED_SECTIONS:
-        if re.search(rf"^##\s+{re.escape(section)}\s*$", body, flags=re.MULTILINE) is None:
-            return False
-    return True
+        if section not in sections:
+            continue
+        if (
+            re.search(rf"^##\s+{re.escape(section)}\s*$", body, flags=re.MULTILINE)
+            is None
+        ):
+            missing.append(section)
+    return missing
 
 
 def _strip_fenced_code_blocks(content: str) -> str:
@@ -100,10 +120,18 @@ def run() -> ValidationReport:
     for page in list_all():
         content = read_text(page.path)
         try:
-            frontmatter, _ = parse_page_frontmatter(content)
+            frontmatter, body = parse_page_frontmatter(content)
         except ValueError as exc:
             report.errors.append(f"{page.rel}: invalid frontmatter: {exc}")
             continue
+        for section in missing_required_sections(body, allow_stub_sources=True):
+            report.errors.append(f"{page.rel}: missing required section ## {section}")
+
+        if not is_stub(body) and not has_sources_section(body):
+            report.errors.append(
+                f"{page.rel}: non-stub page must include at least one ## Sources list item"
+            )
+
         if not frontmatter:
             continue
 

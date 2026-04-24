@@ -116,6 +116,10 @@ def has_sources_section(content: str) -> bool:
 
 
 def is_stub(content: str) -> bool:
+    try:
+        _, content = parse_frontmatter(content)
+    except ValueError:
+        pass
     lines = content.splitlines()
     for line in lines[1:6]:
         if line.strip().lower() == "> stub":

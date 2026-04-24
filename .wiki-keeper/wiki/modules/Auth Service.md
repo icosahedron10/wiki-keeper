@@ -1,4 +1,5 @@
 # Auth Service
+> stub
 
 ## Summary
 Handles login, session, and token issuance.

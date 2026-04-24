@@ -128,6 +128,19 @@ _TOOLS: list[Tool] = [
         },
     ),
     Tool(
+        name="run_nightly",
+        description="Run the git-delta nightly review workflow.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "budget": {"type": "integer", "default": 1, "minimum": 1},
+                "since": {"type": "string"},
+                "until": {"type": "string"},
+                "dry_run": {"type": "boolean", "default": False},
+            },
+        },
+    ),
+    Tool(
         name="read_article",
         description="Read an article with parsed frontmatter and latest audit metadata.",
         inputSchema={
@@ -169,6 +182,13 @@ def _dispatch(name: str, arguments: dict[str, Any]) -> Any:
         return tools.next_review()
     if name == "run_review":
         return tools.run_review(arguments.get("article_id"))
+    if name == "run_nightly":
+        return tools.run_nightly(
+            budget=int(arguments.get("budget", 1)),
+            since=arguments.get("since"),
+            until=arguments.get("until"),
+            dry_run=bool(arguments.get("dry_run", False)),
+        )
     if name == "query_wiki":
         return tools.query_wiki(
             arguments["query"],
