@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from . import audits as audits_mod
@@ -21,8 +24,8 @@ from .pages import (
     parse_page_frontmatter,
     resolve_or_plan,
 )
-from .paths import CATEGORIES
-from .storage import atomic_write, read_text
+from .paths import CATEGORIES, corpus_root
+from .storage import atomic_write, exclusive_lock, read_text
 
 
 def _page_to_dict(p: PageRef) -> dict[str, Any]:
@@ -39,6 +42,12 @@ def _article_id(frontmatter: dict[str, Any] | None, page: PageRef) -> str:
         if frontmatter["id"].strip():
             return frontmatter["id"].strip()
     return f"{page.category}/{page.title}"
+
+
+def _write_lock_path() -> Path:
+    corpus = corpus_root().resolve()
+    digest = hashlib.sha256(str(corpus).encode("utf-8", errors="replace")).hexdigest()[:16]
+    return Path(tempfile.gettempdir()) / f"wiki-keeper-{digest}.lock"
 
 
 # ------------------------------------------------------------------ reads
@@ -161,35 +170,36 @@ _VALID_WRITE_MODES = ("replace", "append", "create_only")
 def update_knowledge(page_name: str, content: str, mode: str = "replace") -> dict[str, Any]:
     if mode not in _VALID_WRITE_MODES:
         raise ValueError(f"mode must be one of {_VALID_WRITE_MODES}, got {mode!r}")
-    ref = resolve_or_plan(page_name)
-    created = not ref.path.is_file()
-    if mode == "create_only" and not created:
-        raise ValueError(f"Page {ref.rel} already exists")
+    with exclusive_lock(_write_lock_path()):
+        ref = resolve_or_plan(page_name)
+        created = not ref.path.is_file()
+        if mode == "create_only" and not created:
+            raise ValueError(f"Page {ref.rel} already exists")
 
-    if mode == "append" and not created:
-        existing = read_text(ref.path)
-        if existing and not existing.endswith("\n"):
-            existing += "\n"
-        new_content = existing + content
-    else:
-        new_content = content
+        if mode == "append" and not created:
+            existing = read_text(ref.path)
+            if existing and not existing.endswith("\n"):
+                existing += "\n"
+            new_content = existing + content
+        else:
+            new_content = content
 
-    if not new_content.endswith("\n"):
-        new_content += "\n"
+        if not new_content.endswith("\n"):
+            new_content += "\n"
 
-    atomic_write(ref.path, new_content)
-    wiki_index.rebuild()
+        atomic_write(ref.path, new_content)
+        wiki_index.rebuild()
 
-    action = "create" if created else ("append" if mode == "append" else "replace")
-    wikilog.append("update_knowledge", action, ref.rel)
+        action = "create" if created else ("append" if mode == "append" else "replace")
+        wikilog.append("update_knowledge", action, ref.rel)
 
-    return {
-        "created": created,
-        "mode": mode,
-        **_page_to_dict(ref),
-        "index_updated": True,
-        "log_updated": True,
-    }
+        return {
+            "created": created,
+            "mode": mode,
+            **_page_to_dict(ref),
+            "index_updated": True,
+            "log_updated": True,
+        }
 
 
 def rebuild_index() -> dict[str, Any]:
@@ -210,9 +220,17 @@ def run_review(article_id: str | None = None) -> dict[str, Any]:
     )
 
 
-def run_nightly(budget: int = 1) -> dict[str, Any]:
+def run_nightly(
+    budget: int = 1,
+    since: str | None = None,
+    until: str | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
     return nightly_mod.run_nightly(
         budget=budget,
+        since=since,
+        until=until,
+        dry_run=dry_run,
         update_knowledge_fn=update_knowledge,
     )
 

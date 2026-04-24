@@ -13,19 +13,23 @@ def run_orchestrator(
     reader_b: str,
     schema_markdown: str,
 ) -> dict[str, Any]:
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["confidence", "decision", "patch_content", "rationale"],
+        "properties": {
+            "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+            "decision": {"type": "string", "enum": ["patch", "audit_only"]},
+            "patch_content": {"type": "string"},
+            "rationale": {"type": "string"},
+        },
+    }
     system = (
         "You are the wiki-keeper orchestrator. Decide whether to patch the article "
-        "or file audit-only. Respond with JSON only."
+        "or file audit-only. Return strict JSON matching the schema."
     )
     prompt = (
         "Using schema rules and two reader reports, decide whether to patch.\n\n"
-        "Output JSON shape:\n"
-        "{\n"
-        '  "confidence": "high|medium|low",\n'
-        '  "decision": "patch|audit_only",\n'
-        '  "patch_content": "<full replacement markdown or empty string>",\n'
-        '  "rationale": "<brief reason>"\n'
-        "}\n\n"
         "SCHEMA:\n"
         f"{schema_markdown}\n\n"
         "ARTICLE:\n"
@@ -35,11 +39,13 @@ def run_orchestrator(
         "READER_B:\n"
         f"{reader_b}\n"
     )
-    result = llm.complete_json(
+    result = llm.complete_json_schema(
         system_prompt=system,
         user_prompt=prompt,
         model=llm.config.orchestrator_model,
         reasoning=llm.config.orchestrator_reasoning,
+        schema_name="nightly_orchestrator_decision",
+        schema=schema,
     )
     confidence = str(result.get("confidence", "low")).lower()
     if confidence not in {"high", "medium", "low"}:

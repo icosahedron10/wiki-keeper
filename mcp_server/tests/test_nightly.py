@@ -80,6 +80,9 @@ class FakeLLM:
     def complete_json(self, **kwargs):  # noqa: ARG002
         return dict(self._decision)
 
+    def complete_json_schema(self, **kwargs):  # noqa: ARG002
+        return dict(self._decision)
+
 
 def _seed_review_target(wiki_root):
     atomic_write(roadmap_path(), "- modules/Auth Service\n")

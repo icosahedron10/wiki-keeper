@@ -7,6 +7,7 @@
 - Keep synthesized pages under `.wiki-keeper/wiki/`.
 - Use article frontmatter `sources` globs for host-repo evidence in nightly reviews.
 - Run `wiki-keeper validate --repo .` before large wiki edits.
-- Use `wiki-keeper run-nightly --repo . --budget 1` in automation for drift audits.
+- Use `wiki-keeper run-nightly --repo . --budget 4` in automation for git-delta drift audits.
+- Treat `ingest_source` and `propose_ingest` as future V1.1 capabilities, not V1 tools.
 - Never edit host repository files from wiki-keeper flows.
 ```

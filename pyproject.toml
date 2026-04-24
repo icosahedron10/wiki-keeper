@@ -2,29 +2,75 @@
 name = "wiki-keeper"
 version = "0.1.0"
 description = "Persistent knowledge layer for coding agents, exposed over MCP."
+readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Wiki Keeper Contributors" },
+]
+keywords = ["mcp", "agents", "documentation", "wiki", "monorepo"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+]
 dependencies = [
     "mcp>=1.2.0",
     "openai>=1.0.0",
     "pyyaml>=6.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/icosahedron10/wiki-keeper"
+Documentation = "https://github.com/icosahedron10/wiki-keeper#readme"
+Issues = "https://github.com/icosahedron10/wiki-keeper/issues"
+
 [project.optional-dependencies]
 dev = [
+    "build>=1.2",
+    "mypy>=1.8",
     "pytest>=8.0",
+    "ruff>=0.4",
+    "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
 wiki-keeper = "mcp_server.cli:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = false
 
 [tool.setuptools.packages.find]
 include = ["mcp_server*"]
+exclude = ["mcp_server.tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["mcp_server/tests"]
 # Windows %TEMP% often denies scandir; pin a project-local dir instead.
 addopts = "--basetemp=.pytest_tmp"
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.mypy]
+python_version = "3.10"
+exclude = ["mcp_server/tests"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+no_implicit_optional = true

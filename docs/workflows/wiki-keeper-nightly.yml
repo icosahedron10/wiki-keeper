@@ -1,0 +1,32 @@
+name: Wiki Keeper Nightly
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: wiki-keeper-nightly
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./tools/wiki-keeper/.github/actions/wiki-keeper-nightly
+        with:
+          package-dir: ./tools/wiki-keeper
+          repo: .
+          branch: wiki-keeper/nightly
+          base-branch: ${{ github.event.repository.default_branch }}
+          budget: "4"
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          github-token: ${{ github.token }}

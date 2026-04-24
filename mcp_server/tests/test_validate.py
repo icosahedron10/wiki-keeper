@@ -78,6 +78,32 @@ def test_schema_compliance_accepts_all_required_headings():
     assert page_is_schema_compliant(content) is True
 
 
+def test_schema_compliance_rejects_non_stub_without_source_items():
+    content = (
+        "# Example\n\n"
+        "## Summary\nx\n\n"
+        "## Key Facts\n- x\n\n"
+        "## Details\nx\n\n"
+        "## Relationships\n- [[Example]]\n\n"
+        "## Sources\n\n"
+        "## Open Questions\n- None.\n"
+    )
+    assert page_is_schema_compliant(content) is False
+
+
+def test_schema_compliance_allows_stub_without_sources_section():
+    content = (
+        "# Example\n"
+        "> stub\n\n"
+        "## Summary\nx\n\n"
+        "## Key Facts\n- x\n\n"
+        "## Details\nx\n\n"
+        "## Relationships\n- [[Example]]\n\n"
+        "## Open Questions\n- None.\n"
+    )
+    assert page_is_schema_compliant(content) is True
+
+
 def test_validate_skips_source_scan_when_sources_type_invalid(wiki_root):
     tools.update_knowledge(
         "modules/Auth Service",
@@ -98,3 +124,33 @@ def test_validate_skips_source_scan_when_sources_type_invalid(wiki_root):
         "frontmatter.sources must be a list of glob strings" in e for e in report["errors"]
     )
     assert not any("matched no files" in e for e in report["errors"])
+
+
+def test_validate_requires_sections_and_sources_for_non_stub(wiki_root):
+    tools.update_knowledge(
+        "concepts/Bad Page",
+        "# Bad Page\n\n## Summary\nNo sources.\n",
+        mode="replace",
+    )
+    report = tools.validate()
+    assert report["ok"] is False
+    assert any("missing required section ## Key Facts" in e for e in report["errors"])
+    assert any("non-stub page must include" in e for e in report["errors"])
+
+
+def test_validate_allows_stub_without_sources_section(wiki_root):
+    tools.update_knowledge(
+        "concepts/Stub Page",
+        (
+            "# Stub Page\n"
+            "> stub\n\n"
+            "## Summary\nStub.\n\n"
+            "## Key Facts\n- Unknown.\n\n"
+            "## Details\nPending.\n\n"
+            "## Relationships\n- None yet.\n\n"
+            "## Open Questions\n- What should be documented first?\n"
+        ),
+        mode="replace",
+    )
+    report = tools.validate()
+    assert not any("Stub Page.md: missing required section ## Sources" in e for e in report["errors"])

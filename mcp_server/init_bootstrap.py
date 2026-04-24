@@ -13,10 +13,10 @@ from .monorepo_inventory import MonorepoInventory, bounded_slice_previews
 from .pages import parse_name
 from .validate import page_is_schema_compliant
 
-DEFAULT_INIT_MANAGER_MODEL = "gpt-5.4"
+DEFAULT_INIT_MANAGER_MODEL = "gpt-5.4-mini"
 DEFAULT_INIT_WORKER_MODEL = "gpt-5.4-mini"
-DEFAULT_INIT_MANAGER_REASONING = "high"
-DEFAULT_INIT_WORKER_REASONING = "medium"
+DEFAULT_INIT_MANAGER_REASONING = "medium"
+DEFAULT_INIT_WORKER_REASONING = "low"
 
 _CONFIDENCE_LEVELS = {"high", "medium", "low"}
 _CATEGORIES = {"concepts", "modules", "decisions"}
@@ -252,7 +252,7 @@ def validate_worker_report(report: dict[str, Any], *, available_paths: set[str])
     packet_id = str(report.get("packet_id", "")).strip()
     if not packet_id:
         raise ValueError("Worker report missing packet_id")
-    normalized = {"packet_id": packet_id}
+    normalized: dict[str, Any] = {"packet_id": packet_id}
     normalized["facts"] = _normalize_evidenced_rows(report.get("facts", []), available_paths, field_name="facts")
     normalized["module_candidates"] = _normalize_modules(report.get("module_candidates", []), available_paths)
     normalized["entrypoints"] = _normalize_path_list(report.get("entrypoints", []), available_paths, "entrypoints")

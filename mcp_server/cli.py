@@ -9,6 +9,7 @@ from pathlib import Path
 from . import nightly as nightly_mod
 from . import server, tools
 from .init_corpus import init_corpus
+from .storage import atomic_write
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -19,6 +20,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     init_p = sub.add_parser("init", help="Initialize .wiki-keeper corpus.")
     init_p.add_argument("--repo", default=".")
+    mode = init_p.add_mutually_exclusive_group()
+    mode.add_argument("--offline", action="store_true", help="Use deterministic local bootstrap.")
+    mode.add_argument("--online", action="store_true", help="Use model-assisted bootstrap.")
+    init_p.add_argument("--dry-run", action="store_true")
+    init_p.add_argument("--refresh-bootstrap", action="store_true")
+    init_p.add_argument("--max-subagents", type=int, default=12)
+    init_p.add_argument("--since", help="Baseline commit SHA/ref for the first nightly run.")
 
     val_p = sub.add_parser("validate", help="Validate corpus and lint wiki.")
     val_p.add_argument("--repo", default=".")
@@ -26,6 +34,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     nightly_p = sub.add_parser("run-nightly", help="Run nightly freshness pass.")
     nightly_p.add_argument("--repo", default=".")
     nightly_p.add_argument("--budget", type=int, default=1)
+    nightly_p.add_argument("--since", help="Override start commit SHA/ref.")
+    nightly_p.add_argument("--until", help="Override end commit SHA/ref.")
+    nightly_p.add_argument("--dry-run", action="store_true")
+    nightly_p.add_argument("--json-output", help="Write the JSON result to this path.")
 
     tools_p = sub.add_parser("tools", help="Debug/scripting surface for base tools.")
     tools_p.add_argument("--repo", default=".")
@@ -66,7 +78,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "init":
-        out = init_corpus(Path(args.repo))
+        out = init_corpus(
+            Path(args.repo),
+            offline=bool(args.offline) or not bool(args.online),
+            refresh_bootstrap=bool(args.refresh_bootstrap),
+            max_subagents=int(args.max_subagents),
+            dry_run=bool(args.dry_run),
+            since=args.since,
+        )
         print(json.dumps(out, indent=2, default=str))
         return 0
 
@@ -80,9 +99,15 @@ def main(argv: list[str] | None = None) -> int:
         _set_repo_root(args.repo)
         out = nightly_mod.run_nightly(
             budget=int(args.budget),
+            since=args.since,
+            until=args.until,
+            dry_run=bool(args.dry_run),
             update_knowledge_fn=tools.update_knowledge,
         )
-        print(json.dumps(out, indent=2, default=str))
+        rendered = json.dumps(out, indent=2, default=str)
+        if args.json_output:
+            atomic_write(Path(args.json_output), rendered + "\n")
+        print(rendered)
         return 0
 
     if args.cmd == "tools":

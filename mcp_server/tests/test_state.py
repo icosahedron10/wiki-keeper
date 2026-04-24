@@ -42,3 +42,23 @@ def test_state_normalizes_shape(wiki_root):
     loaded = state.load()
     assert loaded["cursor"]["index"] == 1
     assert "history" in loaded
+    assert loaded["git"]["last_processed_commit"] is None
+
+
+def test_state_records_git_run(wiki_root):
+    current = state.load()
+    updated = state.record_git_run(
+        current,
+        since="abc",
+        until="def",
+        default_branch="main",
+        changed_paths=["services/auth/app.py"],
+        outcome="audit_only",
+        audit_paths=[".wiki-keeper/audits/2026-04-23/git-delta.md"],
+        patch_status="audit_only",
+        date="2026-04-23",
+    )
+    assert updated["git"]["last_processed_commit"] == "def"
+    assert updated["git"]["last_seen_commit"] == "def"
+    assert updated["git"]["default_branch"] == "main"
+    assert updated["git"]["runs"][0]["changed_paths"] == ["services/auth/app.py"]

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-DEFAULT_ORCHESTRATOR_MODEL = "gpt-5-mini"
+DEFAULT_ORCHESTRATOR_MODEL = "gpt-5-nano"
 DEFAULT_READER_MODEL = "gpt-5-nano"
 DEFAULT_ORCHESTRATOR_REASONING = "medium"
 DEFAULT_READER_REASONING = "low"

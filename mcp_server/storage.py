@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
+import time
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 
 def read_text(path: Path) -> str:
@@ -48,3 +52,62 @@ def atomic_append(path: Path, line: str) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+@contextmanager
+def exclusive_lock(path: Path, *, timeout_seconds: float = 30.0) -> Iterator[None]:
+    """Acquire a simple sidecar lock file until the context exits."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + timeout_seconds
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+    locked = False
+    try:
+        while not locked:
+            try:
+                _lock_fd(fd)
+                locked = True
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"Timed out waiting for lock {path}")
+                time.sleep(0.05)
+        os.ftruncate(fd, 0)
+        os.write(fd, str(os.getpid()).encode("ascii"))
+        yield
+    finally:
+        if locked:
+            _unlock_fd(fd)
+        os.close(fd)
+
+
+def _lock_fd(fd: int) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError as exc:
+            raise BlockingIOError from exc
+        return
+
+    import fcntl
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as exc:
+        raise BlockingIOError from exc
+
+
+def _unlock_fd(fd: int) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+        return
+
+    import fcntl
+
+    fcntl.flock(fd, fcntl.LOCK_UN)
