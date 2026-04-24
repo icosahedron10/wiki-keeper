@@ -71,9 +71,7 @@ def missing_required_sections(
             section for section in REQUIRED_SECTIONS if section != "Sources"
         )
     missing: list[str] = []
-    for section in REQUIRED_SECTIONS:
-        if section not in sections:
-            continue
+    for section in sections:
         if (
             re.search(rf"^##\s+{re.escape(section)}\s*$", body, flags=re.MULTILINE)
             is None

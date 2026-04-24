@@ -7,7 +7,6 @@ from .pages import (
     PageRef,
     extract_wikilinks,
     find_page,
-    is_stub,
     list_all,
 )
 from .paths import index_path, log_path

@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "init":
         out = init_corpus(
             Path(args.repo),
-            offline=not bool(args.online),
+            offline=bool(args.offline) or not bool(args.online),
             refresh_bootstrap=bool(args.refresh_bootstrap),
             max_subagents=int(args.max_subagents),
             dry_run=bool(args.dry_run),
