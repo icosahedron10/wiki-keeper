@@ -11,6 +11,7 @@ from .pages import (
     list_all,
 )
 from .paths import index_path, log_path
+from .roadmap import load_entries
 from .storage import read_text
 
 
@@ -74,23 +75,16 @@ def _check_links(pages: list[PageRef]) -> tuple[list[tuple[str, str]], set[str]]
     return broken, referenced
 
 
-def _check_orphans(pages: list[PageRef], referenced: set[str]) -> list[str]:
+def _check_orphans(pages: list[PageRef], referenced: set[str], roadmap_entries: set[str]) -> list[str]:
     referenced_titles = {r.split("/")[-1] for r in referenced}
     orphans: list[str] = []
     for p in pages:
         if p.title in referenced_titles:
             continue
-        if _index_links_to(p):
+        if f"{p.category}/{p.title}" in roadmap_entries:
             continue
         orphans.append(p.rel)
     return orphans
-
-
-def _index_links_to(p: PageRef) -> bool:
-    if not index_path().is_file():
-        return False
-    text = read_text(index_path())
-    return f"]({p.category}/{p.title}.md)" in text
 
 
 def _check_log() -> list[int]:
@@ -111,8 +105,12 @@ def _check_log() -> list[int]:
 def run() -> LintReport:
     report = LintReport()
     pages = list_all()
+    try:
+        roadmap_entries = set(load_entries())
+    except FileNotFoundError:
+        roadmap_entries = set()
     report.not_in_index = _check_index(pages)
     report.broken_links, referenced = _check_links(pages)
-    report.orphans = _check_orphans(pages, referenced)
+    report.orphans = _check_orphans(pages, referenced, roadmap_entries)
     report.malformed_log_lines = _check_log()
     return report

@@ -9,7 +9,7 @@ import pytest
 
 from mcp_server import git_delta, nightly, state, tools
 from mcp_server.init_corpus import initialize_wiki
-from mcp_server.paths import state_path
+from mcp_server.paths import roadmap_path, state_path
 from mcp_server.storage import read_text
 
 
@@ -238,6 +238,7 @@ def test_run_nightly_partial_budget_does_not_advance_processed_commit(wiki_root,
         encoding="utf-8",
     )
     tools.update_knowledge("modules/Billing Service", BILLING_ARTICLE, mode="replace")
+    roadmap_path().write_text("- modules/Auth Service\n- modules/Billing Service\n", encoding="utf-8")
     baseline = _commit_all(wiki_root, "add billing baseline")
     current = state.load()
     state.save(state.set_git_baseline(current, commit=baseline, default_branch="master"))
@@ -265,6 +266,24 @@ def test_run_nightly_partial_budget_does_not_advance_processed_commit(wiki_root,
     assert git_state["last_seen_commit"] == head
     assert git_state["last_processed_commit"] == baseline
 
+    second = nightly.run_nightly(
+        budget=1,
+        llm_client=FakeLLM(),
+        update_knowledge_fn=tools.update_knowledge,
+    )
+
+    assert second["outcome"] == "audit_only"
+    assert second["results"][0]["article_id"] == "billing-overview"
+    assert second["already_processed"] == 1
+    assert state.load()["git"]["last_processed_commit"] == head
+
+    third = nightly.run_nightly(
+        budget=1,
+        llm_client=FakeLLM(),
+        update_knowledge_fn=tools.update_knowledge,
+    )
+    assert third["outcome"] == "no_changes"
+
 
 def test_run_nightly_unmapped_delta_writes_audit_without_api_key(wiki_root, monkeypatch):
     _seed_git_review_repo(wiki_root)
@@ -279,6 +298,23 @@ def test_run_nightly_unmapped_delta_writes_audit_without_api_key(wiki_root, monk
     assert out["matches"] == []
     assert out["audit_path"]
     assert (wiki_root / out["audit_path"]).is_file()
+
+
+def test_run_nightly_reviews_deleted_only_mapped_source(wiki_root, monkeypatch):
+    _seed_git_review_repo(wiki_root)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    (wiki_root / "services" / "auth" / "handler.py").unlink()
+    _commit_all(wiki_root, "delete auth handler")
+
+    out = nightly.run_nightly(
+        budget=1,
+        llm_client=FakeLLM(),
+        update_knowledge_fn=tools.update_knowledge,
+    )
+
+    assert out["outcome"] == "audit_only"
+    assert out["results"][0]["article_id"] == "auth-overview"
+    assert out["results"][0]["changed_paths"] == ["services/auth/handler.py"]
 
 
 def test_missing_baseline_commit_recovers_by_rebaselining(wiki_root):

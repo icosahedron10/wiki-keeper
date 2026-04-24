@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -56,6 +57,20 @@ def test_update_replace_preserves_one_log_line(wiki_root: Path):
     assert len(_log_lines(wiki_root)) == baseline + 1
 
 
+def test_update_append_serializes_concurrent_writes(wiki_root: Path):
+    tools.update_knowledge("concepts/Concurrent Notes", "# Concurrent Notes\n", mode="create_only")
+
+    def _append(idx: int) -> None:
+        tools.update_knowledge("concepts/Concurrent Notes", f"line-{idx}\n", mode="append")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(_append, range(20)))
+
+    lines = tools.get_page("concepts/Concurrent Notes")["content"].splitlines()
+    for idx in range(20):
+        assert lines.count(f"line-{idx}") == 1
+
+
 def test_create_only_rejects_existing(wiki_root: Path):
     tools.update_knowledge("concepts/Feature Flags", PAGE_BODY)
     try:
@@ -89,10 +104,10 @@ def test_lint_flags_orphan(wiki_root: Path):
         wiki_root / ".wiki-keeper" / "wiki" / "concepts" / "Stub Page.md",
         "# Stub Page\n> stub\n",
     )
-    # deliberately skip rebuild_index so the page is an orphan
+    tools.rebuild_index()
     report = tools.lint_wiki()
     assert any("Stub Page.md" in o for o in report["orphans"])
-    assert any("Stub Page.md" in m for m in report["not_in_index"])
+    assert not any("Stub Page.md" in m for m in report["not_in_index"])
 
 
 def test_removed_ingest_tools_are_unavailable():

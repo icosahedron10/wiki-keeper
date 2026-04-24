@@ -94,7 +94,7 @@ def _strip_fenced_code_blocks(content: str) -> str:
     return "\n".join(lines)
 
 
-def run() -> ValidationReport:
+def run(*, require_source_matches: bool = True) -> ValidationReport:
     report = ValidationReport()
     _check_layout(report)
     if report.errors:
@@ -149,7 +149,7 @@ def run() -> ValidationReport:
         if scan.errors:
             for err in scan.errors:
                 report.errors.append(f"{page.rel}: {err}")
-        if not scan.files:
+        if require_source_matches and not scan.files:
             report.errors.append(f"{page.rel}: frontmatter.sources matched no files")
 
     try:

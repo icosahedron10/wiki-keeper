@@ -30,7 +30,7 @@ def run_nightly(
     if budget < 1:
         raise ValueError("budget must be >= 1")
 
-    report = run_validate()
+    report = run_validate(require_source_matches=False)
     if not report.ok:
         raise RuntimeError(
             "Validation failed before run-nightly: " + "; ".join(report.errors)
@@ -135,8 +135,35 @@ def run_nightly(
 
     require_api_key()
     llm = llm_client or LLMClient()
+    pending_matches = _pending_matches_for_range(
+        matches,
+        current_state=current_state,
+        commit_range=commit_range.to_dict(),
+    )
+    already_processed = len(matches) - len(pending_matches)
+    if not pending_matches:
+        updated = state.record_git_run(
+            current_state,
+            since=commit_range.since,
+            until=commit_range.until,
+            default_branch=commit_range.default_branch,
+            changed_paths=commit_range.changed_paths,
+            outcome="already_processed",
+            audit_paths=[],
+            patch_status="already_processed",
+        )
+        state.save(updated)
+        return {
+            **payload_base,
+            "outcome": "already_processed",
+            "results": [],
+            "skipped_matches": [],
+            "already_processed_matches": [match.to_dict() for match in matches],
+            "patch_status": "already_processed",
+        }
+
     results: list[dict[str, Any]] = []
-    for match in matches[:budget]:
+    for match in pending_matches[:budget]:
         diff_files = git_delta.diff_source_files(
             root,
             since=commit_range.since or commit_range.until,
@@ -160,7 +187,7 @@ def run_nightly(
         )
 
     audit_paths = [str(item.get("audit_path", "")) for item in results if item.get("audit_path")]
-    skipped_matches = matches[budget:]
+    skipped_matches = pending_matches[budget:]
     patch_status = _summarize_patch_status(results, skipped=bool(skipped_matches))
     outcome = "patched" if any(item.get("outcome") == "patched" for item in results) else "audit_only"
     if skipped_matches:
@@ -183,6 +210,7 @@ def run_nightly(
         "outcome": outcome,
         "results": results,
         "skipped_matches": [match.to_dict() for match in skipped_matches],
+        "already_processed": already_processed,
         "patch_status": patch_status,
     }
 
@@ -198,7 +226,7 @@ def run_review(
     commit_range: dict[str, Any] | None = None,
     changed_paths: list[str] | None = None,
 ) -> dict[str, Any]:
-    report = run_validate()
+    report = run_validate(require_source_matches=source_files is None)
     if not report.ok:
         raise RuntimeError(
             "Validation failed before run_review: " + "; ".join(report.errors)
@@ -222,6 +250,7 @@ def run_review(
 
     content = read_text(ref.path)
     frontmatter, body = parse_page_frontmatter(content)
+    selected_id = _article_id_from_frontmatter(frontmatter, fallback=selected_id)
     frontmatter_sources = []
     if frontmatter and isinstance(frontmatter.get("sources"), list):
         frontmatter_sources = [str(item) for item in frontmatter["sources"]]
@@ -486,6 +515,52 @@ def _write_unmapped_delta_audit(commit_range: git_delta.GitRange) -> Any:
         ],
         run_at=datetime.now(timezone.utc),
     )
+
+
+def _pending_matches_for_range(
+    matches: list[git_delta.ArticleMatch],
+    *,
+    current_state: dict[str, Any],
+    commit_range: dict[str, Any],
+) -> list[git_delta.ArticleMatch]:
+    processed = _processed_article_ids_for_range(
+        current_state,
+        since=commit_range.get("since"),
+        until=commit_range.get("until"),
+    )
+    return [match for match in matches if match.article_id not in processed]
+
+
+def _processed_article_ids_for_range(
+    current_state: dict[str, Any],
+    *,
+    since: Any,
+    until: Any,
+) -> set[str]:
+    processed: set[str] = set()
+    history = current_state.get("history", [])
+    if not isinstance(history, list):
+        return processed
+    for row in history:
+        if not isinstance(row, dict):
+            continue
+        if row.get("outcome") == "error":
+            continue
+        row_range = row.get("commit_range")
+        if not isinstance(row_range, dict):
+            continue
+        if row_range.get("since") != since or row_range.get("until") != until:
+            continue
+        article_id = row.get("article_id")
+        if isinstance(article_id, str) and article_id.strip():
+            processed.add(article_id.strip())
+    return processed
+
+
+def _article_id_from_frontmatter(frontmatter: dict[str, Any] | None, *, fallback: str) -> str:
+    if frontmatter and isinstance(frontmatter.get("id"), str) and frontmatter["id"].strip():
+        return frontmatter["id"].strip()
+    return fallback
 
 
 def _summarize_patch_status(results: list[dict[str, Any]], *, skipped: bool) -> str:
