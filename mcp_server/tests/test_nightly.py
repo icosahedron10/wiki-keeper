@@ -100,7 +100,7 @@ def _patch_payload(confidence: str = "high", patch_content: str = PATCHED_BODY) 
     }
 
 
-def test_run_review_scopes_model_input_to_requested_article(wiki_root, monkeypatch):
+def test_run_review_includes_all_matched_diffs_in_model_input(wiki_root, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     _seed_review_target(wiki_root)
     tools.update_knowledge(
@@ -124,24 +124,12 @@ def test_run_review_scopes_model_input_to_requested_article(wiki_root, monkeypat
     monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (commit_range, None))
     monkeypatch.setattr(git_delta, "diff_source_files", lambda *_args, **_kwargs: [])
     fake = FakeClient(_patch_payload())
-    out = nightly.run_review(article_id="auth-overview", client=fake, update_knowledge_fn=tools.update_knowledge)
+    out = nightly.run_review(client=fake, update_knowledge_fn=tools.update_knowledge)
     assert out["outcome"] == "patched"
-    assert [match["article_id"] for match in out["matches"]] == ["auth-overview"]
+    assert [match["article_id"] for match in out["matches"]] == ["auth-overview", "billing-overview"]
     assert len(fake.responses.calls) == 1
     assert "auth-overview" in fake.responses.calls[0]["input"]
-    assert "billing-overview" not in fake.responses.calls[0]["input"]
-
-
-def test_run_review_with_unmatched_article_does_not_call_model(wiki_root, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    _seed_review_target(wiki_root)
-    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (_range(), None))
-    fake = FakeClient(_patch_payload())
-    out = nightly.run_review(article_id="billing-overview", client=fake, update_knowledge_fn=tools.update_knowledge)
-    assert out["outcome"] == "no_matching_article"
-    assert out["article_id"] == "billing-overview"
-    assert out["matches"] == []
-    assert fake.responses.calls == []
+    assert "billing-overview" in fake.responses.calls[0]["input"]
 
 
 def test_nightly_whole_range_call_applies_high_confidence_patch(wiki_root, monkeypatch):

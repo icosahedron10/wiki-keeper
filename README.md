@@ -97,7 +97,7 @@ need to call a model. Deterministic read/write/search/lint tools do not.
 | `list_pages` | List pages, optionally filtered by category. |
 | `list_articles` | List pages with frontmatter and last-audit metadata. |
 | `next_review` | Return the next roadmap entry after the state cursor. |
-| `run_review` | Current implementation delegates to the git-delta nightly workflow; the `article_id` argument is accepted but not used to scope review yet. |
+| `run_review` | Run the git-delta nightly review workflow across all matched diffs. |
 | `run_nightly` | Run the git-delta freshness workflow. |
 | `query_wiki` | Keyword search across wiki pages. `hybrid` mode is accepted by the schema but semantic search is not implemented yet. |
 | `update_knowledge` | Create, replace, or append a page atomically, then rebuild the index and append the wiki log. |

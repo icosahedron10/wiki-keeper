@@ -213,9 +213,8 @@ def rebuild_index() -> dict[str, Any]:
     return {"pages": count, "index_updated": True}
 
 
-def run_review(article_id: str | None = None) -> dict[str, Any]:
+def run_review() -> dict[str, Any]:
     return nightly_mod.run_review(
-        article_id=article_id,
         update_knowledge_fn=update_knowledge,
     )
 
@@ -246,9 +245,8 @@ async def run_nightly_async(
     )
 
 
-async def run_review_async(article_id: str | None = None) -> dict[str, Any]:
+async def run_review_async() -> dict[str, Any]:
     return await nightly_mod.run_review_async(
-        article_id=article_id,
         update_knowledge_fn=update_knowledge,
     )
 

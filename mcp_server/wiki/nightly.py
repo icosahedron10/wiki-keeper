@@ -27,7 +27,6 @@ async def run_nightly_async(
     client: AsyncOpenAIClient | None = None,
     update_knowledge_fn: UpdateKnowledgeFn,
     model: str | None = None,
-    article_id: str | None = None,
 ) -> dict[str, Any]:
     report = run_validate(require_source_matches=False)
     if not report.ok:
@@ -81,12 +80,10 @@ async def run_nightly_async(
         }
 
     matches = git_delta.map_changed_paths_to_articles(commit_range.changed_paths)
-    requested_article_id = _clean_article_id(article_id)
-    scoped_matches = _filter_matches_for_article(matches, requested_article_id)
     payload_base = {
         "model": selected_model,
         "commit_range": commit_range.to_dict(),
-        "matches": [match.to_dict() for match in scoped_matches],
+        "matches": [match.to_dict() for match in matches],
         "dry_run": dry_run,
     }
 
@@ -115,17 +112,7 @@ async def run_nightly_async(
             "patch_status": "none",
         }
 
-    if requested_article_id and not scoped_matches:
-        return {
-            **payload_base,
-            "outcome": "no_matching_article",
-            "article_id": requested_article_id,
-            "article_decisions": [],
-            "audit_paths": [],
-            "patch_status": "none",
-        }
-
-    if not scoped_matches:
+    if not matches:
         audit_path = _write_unmapped_delta_audit(commit_range)
         relative_audit = str(audit_path.relative_to(root)).replace("\\", "/")
         state.save(
@@ -149,7 +136,7 @@ async def run_nightly_async(
             "patch_status": "audit_only",
         }
 
-    pending_matches = _pending_matches_for_range(scoped_matches, current_state=current_state, commit_range=commit_range.to_dict())
+    pending_matches = _pending_matches_for_range(matches, current_state=current_state, commit_range=commit_range.to_dict())
     if not pending_matches:
         state.save(
             state.record_git_run(
@@ -235,22 +222,20 @@ def run_nightly(
 
 async def run_review_async(
     *,
-    article_id: str | None,
     client: AsyncOpenAIClient | None = None,
     update_knowledge_fn: UpdateKnowledgeFn,
     model: str | None = None,
 ) -> dict[str, Any]:
-    return await run_nightly_async(client=client, update_knowledge_fn=update_knowledge_fn, model=model, article_id=article_id)
+    return await run_nightly_async(client=client, update_knowledge_fn=update_knowledge_fn, model=model)
 
 
 def run_review(
     *,
-    article_id: str | None,
     client: AsyncOpenAIClient | None = None,
     update_knowledge_fn: UpdateKnowledgeFn,
     model: str | None = None,
 ) -> dict[str, Any]:
-    return asyncio.run(run_review_async(article_id=article_id, client=client, update_knowledge_fn=update_knowledge_fn, model=model))
+    return asyncio.run(run_review_async(client=client, update_knowledge_fn=update_knowledge_fn, model=model))
 
 
 def _nightly_schema() -> dict[str, Any]:
@@ -410,31 +395,6 @@ def _find_article_by_id(article_id: str) -> tuple[Any, dict[str, Any] | None, st
         if frontmatter and frontmatter.get("id") == article_id:
             return page, frontmatter, body
     return None
-
-
-def _clean_article_id(article_id: str | None) -> str | None:
-    if article_id is None:
-        return None
-    cleaned = str(article_id).strip()
-    return cleaned or None
-
-
-def _filter_matches_for_article(
-    matches: list[git_delta.ArticleMatch],
-    article_id: str | None,
-) -> list[git_delta.ArticleMatch]:
-    if article_id is None:
-        return matches
-    return [match for match in matches if _match_targets_article(match, article_id)]
-
-
-def _match_targets_article(match: git_delta.ArticleMatch, article_id: str) -> bool:
-    normalized = article_id.removesuffix(".md")
-    return normalized in {
-        match.article_id,
-        match.page_name,
-        match.page_path.removesuffix(".md"),
-    }
 
 
 def _diff(old: str, new: str) -> str:
