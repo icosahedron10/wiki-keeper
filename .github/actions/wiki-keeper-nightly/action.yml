@@ -14,9 +14,6 @@ inputs:
   base-branch:
     description: Pull request base branch.
     required: true
-  budget:
-    description: Maximum mapped articles to review in one run.
-    default: "4"
   python-version:
     description: Python version for the action runtime.
     default: "3.12"
@@ -26,12 +23,9 @@ inputs:
   github-token:
     description: GitHub token with contents:write and pull-requests:write.
     required: true
-  reader-model:
-    description: Model for reader/scan work.
-    default: gpt-5-nano
-  orchestrator-model:
-    description: Model for final patch decisions.
-    default: gpt-5-nano
+  nightly-model:
+    description: Model for the single-pass nightly reviewer.
+    default: gpt-5.4-nano
 
 runs:
   using: composite
@@ -54,13 +48,11 @@ runs:
       shell: bash
       env:
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        WIKI_KEEPER_READER_MODEL: ${{ inputs.reader-model }}
-        WIKI_KEEPER_ORCHESTRATOR_MODEL: ${{ inputs.orchestrator-model }}
+        WIKI_KEEPER_NIGHTLY_MODEL: ${{ inputs.nightly-model }}
       run: |
         mkdir -p "${{ inputs.repo }}/.wiki-keeper"
         wiki-keeper run-nightly \
           --repo "${{ inputs.repo }}" \
-          --budget "${{ inputs.budget }}" \
           --json-output "${{ inputs.repo }}/.wiki-keeper/nightly-result.json"
 
     - name: Commit and push wiki updates
@@ -90,7 +82,7 @@ runs:
           echo "Automated wiki-keeper nightly update."
           echo
           echo "Branch: \`${{ inputs.branch }}\`"
-          echo "Budget: \`${{ inputs.budget }}\`"
+          echo "Model: \`${{ inputs.nightly-model }}\`"
           echo
           echo "See \`${{ inputs.repo }}/.wiki-keeper/nightly-result.json\` for run metadata."
         } > "$body_file"

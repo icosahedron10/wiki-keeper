@@ -175,9 +175,7 @@ python -m build
 
 The repository includes a composite nightly action at
 `.github/actions/wiki-keeper-nightly/action.yml` and a host workflow template at
-`docs/workflows/wiki-keeper-nightly.yml`. At the time of this README revision,
-those files still mention older options such as `--budget`; review and update
-them before using the action in a host repository.
+`docs/workflows/wiki-keeper-nightly.yml`.
 
 ## License
 

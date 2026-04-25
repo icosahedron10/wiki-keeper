@@ -27,6 +27,5 @@ jobs:
           repo: .
           branch: wiki-keeper/nightly
           base-branch: ${{ github.event.repository.default_branch }}
-          budget: "4"
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           github-token: ${{ github.token }}

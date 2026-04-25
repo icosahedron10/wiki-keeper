@@ -8,17 +8,12 @@ can live anywhere in the tree.
 
 ```sh
 python -m pip install -e ./tools/wiki-keeper
-wiki-keeper init --repo . --offline
+OPENAI_API_KEY=... wiki-keeper init --repo .
 wiki-keeper validate --repo .
 ```
 
-Use `--online` for model-assisted initialization:
-
-```sh
-OPENAI_API_KEY=... wiki-keeper init --repo . --online --max-subagents 8
-```
-
-`init` records the current `HEAD` as the first nightly baseline. Pass
+`init` uses a model-assisted bootstrap and records the current `HEAD` as the
+first nightly baseline. Pass
 `--since <sha>` to choose a different baseline.
 
 ## GitHub Nightly
