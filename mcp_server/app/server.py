@@ -76,9 +76,9 @@ TOOL_SPECS: list[ToolSpec] = [
     ),
     ToolSpec(
         "run_review",
-        "Run a git-delta nightly review pass, optionally scoped to one article id.",
-        _schema({"article_id": {"type": "string"}}),
-        lambda args: tools.run_review_async(args.get("article_id")),
+        "Run a git-delta nightly review pass across all matched diffs.",
+        _schema(),
+        lambda _args: tools.run_review_async(),
     ),
     ToolSpec(
         "run_nightly",
