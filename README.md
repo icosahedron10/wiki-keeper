@@ -3,26 +3,32 @@
 </p>
 
 <p align="center">
-  <strong>A persistent knowledge layer for coding agents — exposed over MCP.</strong>
+  <strong>A persistent repository wiki for coding agents, exposed over MCP.</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/icosahedron10/wiki-keeper/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue">
-  <img alt="MCP" src="https://img.shields.io/badge/MCP-1.2%2B-8A2BE2">
+  <img alt="MCP 1.2+" src="https://img.shields.io/badge/MCP-1.2%2B-8A2BE2">
   <img alt="Status: Alpha" src="https://img.shields.io/badge/status-alpha-orange">
 </p>
 
 ---
 
-## Why wiki-keeper?
+## What wiki-keeper does
 
-Coding agents lose context the moment a session ends. Wiki-keeper gives them a **durable, auditable wiki** that lives inside the repo — decisions, modules, and concepts written down once and kept fresh automatically as the code evolves.
+Coding agents lose project context between sessions. wiki-keeper gives them a
+durable markdown wiki that lives inside the repository at `.wiki-keeper/`.
+Agents can read, search, update, validate, and review that wiki through MCP
+tools or through the `wiki-keeper` CLI.
 
-- **Agent-native.** Every page is reachable over [MCP](https://modelcontextprotocol.io), so Claude, Codex, and any MCP client can read and write through the same tools.
-- **Commit-driven freshness.** A nightly workflow diffs `git` against the wiki and patches pages when it is confident, or opens audit notes when it is not.
-- **Deterministic core.** The base tools — `get_page`, `list_pages`, `query_wiki`, `update_knowledge`, `rebuild_index`, `lint_wiki` — never touch an LLM. What you store is what you get.
-- **Zero-infra.** Lives as `.wiki-keeper/` inside your repo. Versioned, diffable, reviewable in a pull request.
+The project has three main surfaces:
+
+- **A repo-local wiki corpus** under `.wiki-keeper/`, with pages, schema,
+  roadmap, state, mutation log, and audit notes.
+- **A Python MCP server and CLI** in `mcp_server/`.
+- **An optional static Next.js site scaffold** copied from
+  `mcp_server/site_template/`.
 
 ## How it works
 
@@ -30,132 +36,149 @@ Coding agents lose context the moment a session ends. Wiki-keeper gives them a *
   <img src="explainer.png" alt="How wiki-keeper works" width="840" />
 </p>
 
-Initialize once, use through MCP, keep it fresh nightly.
+The deterministic tools read and write only the wiki corpus. The model-assisted
+flows use OpenAI for initialization and git-delta review, then apply patches
+only through the same atomic wiki write path.
 
 ## Quickstart
 
+Install the package in editable mode:
+
 ```sh
-pip install -e .
-wiki-keeper init --repo . --offline
+python -m pip install -e .
+```
+
+Initialize or refresh the wiki corpus:
+
+```sh
+OPENAI_API_KEY=... wiki-keeper init --repo .
+```
+
+Run the MCP server:
+
+```sh
 wiki-keeper mcp
 ```
 
-That's it — your agent now has a persistent wiki at `.wiki-keeper/`.
+When the package is not located inside the host repository, set
+`WIKI_KEEPER_ROOT` for MCP clients:
 
-Point your MCP-capable client at the `wiki-keeper mcp` process and the tools below become available.
-
-## MCP tools
-
-**Core (deterministic):**
-
-| Tool | Purpose |
-|---|---|
-| `get_page` | Read a page by `category/Title`. |
-| `list_pages` | List pages, optionally filtered by category. |
-| `query_wiki` | Keyword search across the wiki. |
-| `update_knowledge` | Create, replace, or append — atomic. |
-| `rebuild_index` | Regenerate `wiki/index.md`. |
-| `lint_wiki` | Flag orphans, broken links, index drift. |
-
-**Review & freshness:**
-
-| Tool | Purpose |
-|---|---|
-| `validate` | Structural, frontmatter, roadmap, and lint checks. |
-| `list_articles` | Pages with frontmatter and last-audit metadata. |
-| `next_review` | The next roadmap entry after the state cursor. |
-| `run_review` | Review one article (explicit or next roadmap item). |
-| `run_nightly` | Run the full commit-driven nightly pass. |
-| `read_article` | Page with parsed frontmatter and latest audit. |
-| `read_audits` | Recent audits for an article id. |
-
-> `ingest_source` and `propose_ingest` are deliberately out of V1. They arrive in V1.1 once the commit-driven path is stable.
+```sh
+WIKI_KEEPER_ROOT=/path/to/host/repo wiki-keeper mcp
+```
 
 ## CLI
 
 ```sh
-wiki-keeper mcp                                          # stdio MCP server
-wiki-keeper init --repo . --offline                      # deterministic bootstrap
-wiki-keeper init --repo . --online --max-subagents 8     # model-assisted bootstrap
-wiki-keeper validate --repo .                            # lint + schema checks
-wiki-keeper run-nightly --repo . --budget 4 \
-  --json-output .wiki-keeper/nightly-result.json         # commit-driven freshness
-wiki-keeper site init --repo . --site-dir site           # static Vercel wiki site
-wiki-keeper tools --repo . list                          # scripting surface
+wiki-keeper mcp
+wiki-keeper init --repo . [--dry-run] [--refresh-bootstrap] [--since <sha>]
+wiki-keeper validate --repo .
+wiki-keeper run-nightly --repo . [--since <sha>] [--until <sha>] [--dry-run] [--json-output <path>]
+wiki-keeper site init --repo . --site-dir site [--dry-run] [--force]
+
+wiki-keeper tools --repo . get "concepts/Repository Overview"
+wiki-keeper tools --repo . list [--category concepts|modules|decisions]
+wiki-keeper tools --repo . query "authentication" [--top-k 5]
+wiki-keeper tools --repo . update "concepts/Foo" --mode replace --content "..."
+wiki-keeper tools --repo . rebuild-index
+wiki-keeper tools --repo . lint
 ```
 
-<details>
-<summary><strong>Flags reference</strong></summary>
+`init`, `run-nightly`, and MCP `run_nightly` require `OPENAI_API_KEY` when they
+need to call a model. Deterministic read/write/search/lint tools do not.
 
-**`init`** — `--offline` / `--online` (mutually exclusive; offline default), `--dry-run`, `--refresh-bootstrap`, `--max-subagents N` (default 12), `--since <sha>`. Records the current git `HEAD` as the nightly baseline by default.
+## MCP tools
 
-**`run-nightly`** — `--budget N` (default 1), `--since <sha>`, `--until <sha>`, `--dry-run`, `--json-output <path>`.
-
-**`tools`** — `get <page>`, `list [--category]`, `query <q> [--top-k N]`, `update <page> [--content | stdin] [--mode replace|append|create_only]`, `rebuild-index`, `lint`. Note that `--repo` is a `tools`-level flag, so it goes **before** the sub-subcommand.
-
-</details>
-
-## The nightly workflow
-
-`run-nightly` is commit-driven — it only looks at files that actually changed.
-
-1. Validate corpus.
-2. Compute `git.last_processed_commit..HEAD` from `.wiki-keeper/state.json`.
-3. Collect changed paths and diffs.
-4. Map paths to articles through frontmatter `sources`.
-5. Write audit-only notes for unmapped deltas.
-6. For mapped articles, run one strict-schema nightly review call.
-7. Normalize each article decision from the review payload.
-8. Write audit notes to `.wiki-keeper/audits/YYYY-MM-DD/`.
-9. Apply patches **only** when confidence is `high`, via `update_knowledge`.
-10. Update git run history in `state.json`.
-
-`run_review` uses the same validation, audit, and patch policy for a single article.
-
-## Configuration
-
-`OPENAI_API_KEY` is required for `run-nightly`, `run_review`, and `init --online`.
-
-`WIKI_KEEPER_ROOT` overrides the host-repo root (set automatically by `--repo`).
-
-**Nightly model** — default: `gpt-5.4-nano` for the single-pass nightly reviewer.
-
-| Variable | Default |
+| Tool | Purpose |
 |---|---|
-| `WIKI_KEEPER_NIGHTLY_MODEL` | `gpt-5.4-nano` |
+| `get_page` | Read a page by title or `category/Title`. |
+| `read_article` | Read a page with parsed frontmatter and latest audit metadata. |
+| `read_audits` | Read recent audit notes for an article id. |
+| `list_pages` | List pages, optionally filtered by category. |
+| `list_articles` | List pages with frontmatter and last-audit metadata. |
+| `next_review` | Return the next roadmap entry after the state cursor. |
+| `run_review` | Current implementation delegates to the git-delta nightly workflow; the `article_id` argument is accepted but not used to scope review yet. |
+| `run_nightly` | Run the git-delta freshness workflow. |
+| `query_wiki` | Keyword search across wiki pages. `hybrid` mode is accepted by the schema but semantic search is not implemented yet. |
+| `update_knowledge` | Create, replace, or append a page atomically, then rebuild the index and append the wiki log. |
+| `rebuild_index` | Regenerate `.wiki-keeper/wiki/index.md`. |
+| `lint_wiki` | Check links, index drift, orphans, and mutation log format. |
+| `validate` | Run layout, state, roadmap, frontmatter, source-glob, schema, and lint checks. |
 
-**Online init model** — default: `gpt-5.4-mini`.
-
-| Variable | Default |
-|---|---|
-| `WIKI_KEEPER_INIT_MODEL` | `gpt-5.4-mini` |
-
-## Repository layout
+## Corpus layout
 
 ```text
 .wiki-keeper/
 ├── schema.md        # canonical page schema
-├── roadmap.md       # scheduled reviews
-├── state.json       # cursor + git run history
+├── roadmap.md       # review order, one page id per line or bullet
+├── state.json       # roadmap cursor, git baseline, run history, init metadata
 ├── wiki/
-│   ├── index.md
+│   ├── index.md     # generated page index
 │   ├── log.md       # append-only mutation log
 │   ├── decisions/
 │   ├── modules/
 │   └── concepts/
-└── audits/          # YYYY-MM-DD/ review notes
+├── sources/         # reserved source-note buckets
+└── audits/          # YYYY-MM-DD/*.md review and initialization notes
 ```
 
-## Deploy to CI
+Pages must use the sections defined in `.wiki-keeper/schema.md`. Module pages
+may include YAML frontmatter with `id`, `title`, and `sources`; nightly review
+uses `sources` globs to map changed repository paths back to wiki articles.
 
-A composite GitHub Action ships at `.github/actions/wiki-keeper-nightly/action.yml`, with a host workflow template at `docs/workflows/wiki-keeper-nightly.yml`. Requires `OPENAI_API_KEY`, `contents: write`, `pull-requests: write`, and checkout with `fetch-depth: 0`.
+## Nightly review
 
-See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for monorepo installation and release checks.
+`run-nightly` is commit-driven:
 
-## For host repositories
+1. Validate the corpus, allowing source globs that currently match no files.
+2. Resolve a git range from `--since`, `--until`, or
+   `.wiki-keeper/state.json`.
+3. Collect changed paths with `git diff --name-only`.
+4. Match changed paths to article frontmatter `sources`.
+5. If nothing maps, write an audit-only note and advance git state.
+6. If articles map, send all pending matches to one strict JSON-schema model
+   call.
+7. Accept only `patch` or `audit_only` decisions with `high`, `medium`, or
+   `low` confidence.
+8. Apply a patch only when confidence is `high` and the replacement body passes
+   schema checks.
+9. Write audit notes, append the wiki log, and update git run state.
 
-Paste **[docs/AGENTS_TEMPLATE.md](docs/AGENTS_TEMPLATE.md)** into your `AGENTS.md` so agents know how to use the wiki.
+The default nightly model is `gpt-5.4-nano`, overridden by
+`WIKI_KEEPER_NIGHTLY_MODEL`.
+
+The default initialization model is `gpt-5.4-mini`, overridden by
+`WIKI_KEEPER_INIT_MODEL`.
+
+## Static site
+
+```sh
+wiki-keeper site init --repo . --site-dir site
+```
+
+This copies the read-only Next.js site template into `site/`, writes
+`site/lib/generated-config.ts`, and creates `vercel.json` when one does not
+already exist. If `vercel.json` already exists, the command reports the required
+Vercel settings instead of merging them automatically.
+
+## CI and release checks
+
+Local checks used by the project:
+
+```sh
+python -m pip install -e ".[dev]"
+python -m ruff check .
+python -m mypy mcp_server --exclude "mcp_server/tests"
+python -m pytest
+python -m build
+```
+
+The repository includes a composite nightly action at
+`.github/actions/wiki-keeper-nightly/action.yml` and a host workflow template at
+`docs/workflows/wiki-keeper-nightly.yml`. At the time of this README revision,
+those files still mention older options such as `--budget`; review and update
+them before using the action in a host repository.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
