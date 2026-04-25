@@ -4,7 +4,7 @@ import glob
 from dataclasses import dataclass
 from pathlib import Path
 
-from .paths import safe_resolve
+from ..core.paths import safe_resolve
 
 
 @dataclass

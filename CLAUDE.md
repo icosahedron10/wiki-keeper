@@ -47,10 +47,10 @@ CI matrix is Python 3.10/3.11/3.12 × Ubuntu/Windows (`.github/workflows/ci.yml`
 
 The package is `mcp_server/`. It exposes the same set of tools through two front-ends:
 
-- **MCP server** (`server.py`) — stdio JSON-RPC for agents. Tool list is declared statically in `_TOOLS`.
-- **CLI** (`cli.py`) — `wiki-keeper <cmd>`, entrypoint `mcp_server.cli:main`. `wiki-keeper tools …` is the scripting mirror of the MCP tools.
+- **MCP server** (`mcp_server/app/server.py`) — stdio JSON-RPC for agents. Tool list is declared statically in `_TOOLS`.
+- **CLI** (`mcp_server/app/cli.py`) — `wiki-keeper <cmd>`, entrypoint `mcp_server.app.cli:main`. `wiki-keeper tools …` is the scripting mirror of the MCP tools.
 
-Both dispatch into `tools.py`, which is the canonical implementation of every user-visible operation. When adding a tool, wire it in `tools.py` first, then register it in both `server.py._TOOLS` and `cli.py._parse_args`.
+Both dispatch into `mcp_server/app/tools.py`, which is the canonical implementation of every user-visible operation. When adding a tool, wire it in `tools.py` first, then register it in both `server.py._TOOLS` and `cli.py._parse_args`.
 
 ### Corpus layout and root discovery
 

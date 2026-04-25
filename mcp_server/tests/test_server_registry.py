@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_server import server
+from mcp_server.app import server
 
 
 def test_every_registered_tool_has_schema_and_handler():

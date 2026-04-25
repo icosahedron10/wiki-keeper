@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_server.frontmatter import parse_frontmatter, validate_frontmatter
+from mcp_server.core.frontmatter import parse_frontmatter, validate_frontmatter
 
 
 def test_parse_frontmatter_valid():

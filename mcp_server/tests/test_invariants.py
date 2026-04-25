@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server import server, tools
-from mcp_server.paths import index_path, log_path
-from mcp_server.storage import atomic_append, atomic_write
+from mcp_server.app import server, tools
+from mcp_server.core.paths import index_path, log_path
+from mcp_server.core.storage import atomic_append, atomic_write
 
 
 PAGE_BODY = """# Auth Service
@@ -158,6 +158,6 @@ def test_atomic_append_handles_partial_os_write(wiki_root: Path, monkeypatch: py
     def _partial_write(fd: int, data: bytes) -> int:
         return original_write(fd, data[:3])
 
-    monkeypatch.setattr("mcp_server.storage.os.write", _partial_write)
+    monkeypatch.setattr("mcp_server.core.storage.os.write", _partial_write)
     atomic_append(p, "partial-write-safe")
     assert p.read_text(encoding="utf-8") == "partial-write-safe\n"

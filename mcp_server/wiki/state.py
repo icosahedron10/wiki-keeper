@@ -5,8 +5,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 
-from .paths import state_path
-from .storage import atomic_write, read_text
+from ..core.paths import state_path
+from ..core.storage import atomic_write, read_text
 
 
 DEFAULT_STATE: dict[str, Any] = {

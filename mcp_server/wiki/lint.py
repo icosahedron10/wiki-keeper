@@ -3,15 +3,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .pages import (
+from ..core.pages import (
     PageRef,
     extract_wikilinks,
     find_page,
     list_all,
 )
-from .paths import index_path, log_path
+from ..core.paths import index_path, log_path
+from ..core.storage import read_text
 from .roadmap import load_entries
-from .storage import read_text
 
 
 @dataclass

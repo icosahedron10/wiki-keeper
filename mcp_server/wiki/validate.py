@@ -4,9 +4,10 @@ from dataclasses import dataclass, field
 import re
 
 from . import lint as lint_mod
-from .frontmatter import validate_frontmatter
-from .pages import has_sources_section, is_stub, list_all, parse_page_frontmatter
-from .paths import (
+from ..bootstrap.source_scan import resolve_source_globs
+from ..core.frontmatter import validate_frontmatter
+from ..core.pages import has_sources_section, is_stub, list_all, parse_page_frontmatter
+from ..core.paths import (
     CATEGORIES,
     audits_dir,
     corpus_root,
@@ -18,10 +19,9 @@ from .paths import (
     state_path,
     wiki_dir,
 )
+from ..core.storage import read_text
 from .roadmap import load_entries, resolve_entries
-from .source_scan import resolve_source_globs
 from .state import load as load_state
-from .storage import read_text
 
 
 REQUIRED_SECTIONS = (

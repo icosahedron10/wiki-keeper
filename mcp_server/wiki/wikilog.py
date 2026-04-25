@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from .paths import log_path
-from .storage import atomic_append
+from ..core.paths import log_path
+from ..core.storage import atomic_append
 
 
 def _now() -> str:

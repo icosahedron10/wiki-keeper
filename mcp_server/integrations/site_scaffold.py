@@ -7,8 +7,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from .paths import safe_resolve
-from .storage import atomic_write
+from ..core.paths import safe_resolve
+from ..core.storage import atomic_write
 
 GENERATED_SITE_CONFIG = "lib/generated-config.ts"
 TEMPLATE_DIR = "site_template"

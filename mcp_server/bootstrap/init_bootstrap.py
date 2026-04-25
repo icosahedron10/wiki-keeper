@@ -5,11 +5,11 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .frontmatter import serialize_frontmatter
-from .llm import AsyncOpenAIClient, complete_json_schema
+from ..core.frontmatter import serialize_frontmatter
+from ..core.pages import parse_name
+from ..integrations.llm import AsyncOpenAIClient, complete_json_schema
+from ..wiki.validate import page_is_schema_compliant
 from .monorepo_inventory import MonorepoInventory
-from .pages import parse_name
-from .validate import page_is_schema_compliant
 
 _CONFIDENCE_LEVELS = {"high", "medium", "low"}
 _CATEGORIES = {"concepts", "modules", "decisions"}
@@ -206,7 +206,7 @@ def _validate_generated_page(row: Any, *, available_paths: set[str]) -> Generate
 
 
 def _split_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
-    from .frontmatter import parse_frontmatter
+    from ..core.frontmatter import parse_frontmatter
 
     return parse_frontmatter(content)
 

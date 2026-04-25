@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .pages import PageRef, list_all, parse_page_frontmatter
-from .source_scan import SourceFile
-from .storage import read_text
+from ..bootstrap.source_scan import SourceFile
+from ..core.pages import PageRef, list_all, parse_page_frontmatter
+from ..core.storage import read_text
 
 
 @dataclass(frozen=True)

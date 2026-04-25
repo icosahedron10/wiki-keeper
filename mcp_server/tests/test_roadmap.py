@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from mcp_server import roadmap, tools
-from mcp_server.paths import roadmap_path
-from mcp_server.storage import atomic_write
+from mcp_server.app import tools
+from mcp_server.core.paths import roadmap_path
+from mcp_server.core.storage import atomic_write
+from mcp_server.wiki import roadmap
 
 
 def test_load_entries_parses_bullets_and_dedupes(wiki_root):

@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server.init_bootstrap import validate_synthesis_payload
-from mcp_server.init_corpus import detect_host_repo_root, initialize_wiki
-from mcp_server.monorepo_inventory import bounded_slice_previews, collect_inventory
-from mcp_server.pages import parse_page_frontmatter
-from mcp_server.storage import read_text
-from mcp_server.validate import page_is_schema_compliant
+from mcp_server.bootstrap.init_bootstrap import validate_synthesis_payload
+from mcp_server.bootstrap.init_corpus import detect_host_repo_root, initialize_wiki
+from mcp_server.bootstrap.monorepo_inventory import bounded_slice_previews, collect_inventory
+from mcp_server.core.pages import parse_page_frontmatter
+from mcp_server.core.storage import read_text
+from mcp_server.wiki.validate import page_is_schema_compliant
 
 
 class FakeResponses:

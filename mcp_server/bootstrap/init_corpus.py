@@ -10,14 +10,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
-from . import git_delta, index as wiki_index
-from . import state as state_mod
-from . import wikilog
+from ..core.paths import CATEGORIES, SOURCE_FOLDERS, safe_resolve
+from ..core.storage import atomic_write, read_text
+from ..integrations import git_delta
+from ..integrations.llm import AsyncOpenAIClient, create_openai_client, init_model, require_api_key
+from ..wiki import index as wiki_index
+from ..wiki import state as state_mod
+from ..wiki import wikilog
 from .init_bootstrap import BootstrapResult, run_bootstrap
-from .llm import AsyncOpenAIClient, create_openai_client, init_model, require_api_key
 from .monorepo_inventory import MonorepoInventory, collect_inventory
-from .paths import CATEGORIES, SOURCE_FOLDERS, safe_resolve
-from .storage import atomic_write, read_text
 
 DEFAULT_SCHEMA = """# Wiki Schema
 

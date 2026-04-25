@@ -6,10 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server import git_delta, nightly, state, tools
-from mcp_server.init_corpus import initialize_wiki
-from mcp_server.paths import roadmap_path, state_path
-from mcp_server.storage import read_text
+from mcp_server.app import tools
+from mcp_server.bootstrap.init_corpus import initialize_wiki
+from mcp_server.core.paths import roadmap_path, state_path
+from mcp_server.core.storage import read_text
+from mcp_server.integrations import git_delta
+from mcp_server.wiki import nightly, state
 
 
 ARTICLE = """---

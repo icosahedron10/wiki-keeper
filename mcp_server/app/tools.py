@@ -5,16 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from . import audits as audits_mod
-from . import index as wiki_index
-from . import lint as lint_mod
-from . import nightly as nightly_mod
-from . import roadmap as roadmap_mod
-from . import search as search_mod
-from . import state as state_mod
-from . import validate as validate_mod
-from . import wikilog
-from .pages import (
+from ..core.pages import (
     PageRef,
     extract_wikilinks,
     find_page,
@@ -24,8 +15,17 @@ from .pages import (
     parse_page_frontmatter,
     resolve_or_plan,
 )
-from .paths import CATEGORIES, corpus_root
-from .storage import atomic_write, exclusive_lock, read_text
+from ..core.paths import CATEGORIES, corpus_root
+from ..core.storage import atomic_write, exclusive_lock, read_text
+from ..wiki import audits as audits_mod
+from ..wiki import index as wiki_index
+from ..wiki import lint as lint_mod
+from ..wiki import nightly as nightly_mod
+from ..wiki import roadmap as roadmap_mod
+from ..wiki import search as search_mod
+from ..wiki import state as state_mod
+from ..wiki import validate as validate_mod
+from ..wiki import wikilog
 
 
 def _page_to_dict(p: PageRef) -> dict[str, Any]:

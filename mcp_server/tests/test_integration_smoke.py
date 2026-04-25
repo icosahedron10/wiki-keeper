@@ -5,8 +5,9 @@ import json
 
 import yaml
 
-from mcp_server import server, validate
-from mcp_server.init_corpus import init_corpus
+from mcp_server.app import server
+from mcp_server.bootstrap.init_corpus import init_corpus
+from mcp_server.wiki import validate
 
 
 class FakeResponses:

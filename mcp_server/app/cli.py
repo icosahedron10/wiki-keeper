@@ -6,11 +6,11 @@ import os
 import sys
 from pathlib import Path
 
-from . import nightly as nightly_mod
 from . import server, tools
-from .init_corpus import init_corpus
-from .site_scaffold import init_site
-from .storage import atomic_write
+from ..bootstrap.init_corpus import init_corpus
+from ..core.storage import atomic_write
+from ..integrations.site_scaffold import init_site
+from ..wiki import nightly as nightly_mod
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

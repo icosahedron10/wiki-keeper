@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from mcp_server import state
-from mcp_server.paths import state_path
-from mcp_server.storage import atomic_write
+from mcp_server.core.paths import state_path
+from mcp_server.core.storage import atomic_write
+from mcp_server.wiki import state
 
 
 def test_state_round_trip(wiki_root):

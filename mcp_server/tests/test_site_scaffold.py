@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server.site_scaffold import GENERATED_SITE_CONFIG, init_site
+from mcp_server.integrations.site_scaffold import GENERATED_SITE_CONFIG, init_site
 
 
 def test_site_init_dry_run_lists_template_and_vercel_config(tmp_path: Path):

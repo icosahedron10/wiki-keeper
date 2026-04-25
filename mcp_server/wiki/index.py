@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from .pages import list_all
-from .paths import CATEGORIES, index_path
-from .storage import atomic_write
+from ..core.pages import list_all
+from ..core.paths import CATEGORIES, index_path
+from ..core.storage import atomic_write
 
 HEADER = (
     "# Wiki Index\n\n"

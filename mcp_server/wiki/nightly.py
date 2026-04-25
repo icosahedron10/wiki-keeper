@@ -6,13 +6,14 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from . import audits, git_delta, state, wikilog
-from .frontmatter import serialize_frontmatter
-from .llm import AsyncOpenAIClient, complete_json_schema, create_openai_client, nightly_model, require_api_key
-from .pages import find_page, parse_page_frontmatter
-from .paths import repo_root, schema_path
-from .source_scan import SourceFile
-from .storage import read_text
+from ..bootstrap.source_scan import SourceFile
+from ..core.frontmatter import serialize_frontmatter
+from ..core.pages import find_page, parse_page_frontmatter
+from ..core.paths import repo_root, schema_path
+from ..core.storage import read_text
+from ..integrations import git_delta
+from ..integrations.llm import AsyncOpenAIClient, complete_json_schema, create_openai_client, nightly_model, require_api_key
+from . import audits, state, wikilog
 from .validate import page_is_schema_compliant, run as run_validate
 
 UpdateKnowledgeFn = Callable[[str, str, str], dict[str, Any]]
@@ -402,7 +403,7 @@ def _find_article_by_id(article_id: str) -> tuple[Any, dict[str, Any] | None, st
     if ref is not None:
         frontmatter, body = parse_page_frontmatter(read_text(ref.path))
         return ref, frontmatter, body
-    from .pages import list_all
+    from ..core.pages import list_all
 
     for page in list_all():
         frontmatter, body = parse_page_frontmatter(read_text(page.path))

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from mcp_server import tools
-from mcp_server.paths import roadmap_path
-from mcp_server.storage import atomic_write
-from mcp_server.validate import page_is_schema_compliant
+from mcp_server.app import tools
+from mcp_server.core.paths import roadmap_path
+from mcp_server.core.storage import atomic_write
+from mcp_server.wiki.validate import page_is_schema_compliant
 
 
 def test_validate_passes_for_fresh_fixture(wiki_root):

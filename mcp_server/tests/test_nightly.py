@@ -4,8 +4,10 @@ import json
 
 import pytest
 
-from mcp_server import git_delta, nightly, tools
-from mcp_server.storage import read_text
+from mcp_server.app import tools
+from mcp_server.core.storage import read_text
+from mcp_server.integrations import git_delta
+from mcp_server.wiki import nightly
 
 
 ARTICLE_WITH_FRONTMATTER = """---

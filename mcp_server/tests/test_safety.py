@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_server import git_delta, tools
-from mcp_server.paths import roadmap_path
-from mcp_server.storage import atomic_write
+from mcp_server.app import tools
+from mcp_server.core.paths import roadmap_path
+from mcp_server.core.storage import atomic_write
+from mcp_server.integrations import git_delta
 
 
 def _seed(wiki_root):

@@ -42,7 +42,7 @@ dev = [
 ]
 
 [project.scripts]
-wiki-keeper = "mcp_server.cli:main"
+wiki-keeper = "mcp_server.app.cli:main"
 
 [build-system]
 requires = ["setuptools>=77"]

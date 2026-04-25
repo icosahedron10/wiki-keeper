@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .paths import audits_dir, safe_resolve
-from .storage import atomic_write, read_text
+from ..core.paths import audits_dir, safe_resolve
+from ..core.storage import atomic_write, read_text
 
 
 def _slug(value: str) -> str:

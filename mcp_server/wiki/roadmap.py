@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 
-from .pages import PageRef, find_page
-from .paths import roadmap_path
-from .storage import read_text
+from ..core.pages import PageRef, find_page
+from ..core.paths import roadmap_path
+from ..core.storage import read_text
 
 
 _LEADING_BULLET_RE = re.compile(r"^(-|\*|\d+\.)\s+")

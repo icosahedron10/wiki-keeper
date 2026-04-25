@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .pages import PageRef, list_all
-from .storage import read_text
+from ..core.pages import PageRef, list_all
+from ..core.storage import read_text
 
 
 @dataclass
