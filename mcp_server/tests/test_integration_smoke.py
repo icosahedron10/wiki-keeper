@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 import yaml
 
@@ -8,8 +9,40 @@ from mcp_server import server, validate
 from mcp_server.init_corpus import init_corpus
 
 
+class FakeResponses:
+    async def create(self, **kwargs):
+        return {
+            "output_text": json.dumps(
+                {
+                    "pages": [
+                        {
+                            "category": "concepts",
+                            "title": "Repository Overview",
+                            "summary": "Repo",
+                            "key_facts": ["Fact"],
+                            "details": ["Detail"],
+                            "relationships": ["Related to [[Build and Test]]"],
+                            "sources": ["inventory:no-files-discovered"],
+                            "open_questions": ["Question"],
+                            "confidence": "low",
+                            "frontmatter_sources": [],
+                        }
+                    ],
+                    "roadmap_entries": ["concepts/Repository Overview"],
+                    "open_questions": [],
+                    "truncated_areas": [],
+                }
+            )
+        }
+
+
+class FakeClient:
+    responses = FakeResponses()
+
+
 def test_init_scaffolds_and_validate(tmp_path, monkeypatch):
-    out = init_corpus(tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    out = init_corpus(tmp_path, client=FakeClient())
     assert out["initialized"] is True
     monkeypatch.setenv("WIKI_KEEPER_ROOT", str(tmp_path))
     report = validate.run().to_dict()
@@ -17,7 +50,7 @@ def test_init_scaffolds_and_validate(tmp_path, monkeypatch):
 
 
 def test_server_exposes_13_tools():
-    names = [tool.name for tool in server._TOOLS]
+    names = [spec.name for spec in server.TOOL_SPECS]
     assert len(names) == 13
     assert "validate" in names
     assert "run_review" in names

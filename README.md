@@ -80,6 +80,7 @@ wiki-keeper init --repo . --online --max-subagents 8     # model-assisted bootst
 wiki-keeper validate --repo .                            # lint + schema checks
 wiki-keeper run-nightly --repo . --budget 4 \
   --json-output .wiki-keeper/nightly-result.json         # commit-driven freshness
+wiki-keeper site init --repo . --site-dir site           # static Vercel wiki site
 wiki-keeper tools --repo . list                          # scripting surface
 ```
 

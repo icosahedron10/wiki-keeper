@@ -22,9 +22,7 @@ DEFAULT_STATE: dict[str, Any] = {
     "initialization": {
         "completed_at": None,
         "inventory_hash": None,
-        "manager_model": None,
-        "worker_model": None,
-        "subagent_count": 0,
+        "model": None,
         "status": "not_started",
     },
 }
@@ -55,12 +53,7 @@ def normalize(state: dict[str, Any]) -> dict[str, Any]:
         init = state["initialization"]
         out["initialization"]["completed_at"] = init.get("completed_at")
         out["initialization"]["inventory_hash"] = init.get("inventory_hash")
-        out["initialization"]["manager_model"] = init.get("manager_model")
-        out["initialization"]["worker_model"] = init.get("worker_model")
-        try:
-            out["initialization"]["subagent_count"] = int(init.get("subagent_count", 0))
-        except (TypeError, ValueError):
-            out["initialization"]["subagent_count"] = 0
+        out["initialization"]["model"] = init.get("model") or init.get("manager_model")
         status = init.get("status")
         if isinstance(status, str) and status.strip():
             out["initialization"]["status"] = status.strip()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import asyncio
 import json
 import os
 import subprocess
@@ -12,13 +13,8 @@ from typing import Any, Callable, Iterator
 from . import git_delta, index as wiki_index
 from . import state as state_mod
 from . import wikilog
-from .init_bootstrap import (
-    BootstrapResult,
-    InitModelConfig,
-    deterministic_bootstrap_plan,
-    run_bootstrap,
-)
-from .llm import LLMClient
+from .init_bootstrap import BootstrapResult, run_bootstrap
+from .llm import AsyncOpenAIClient, create_openai_client, init_model, require_api_key
 from .monorepo_inventory import MonorepoInventory, collect_inventory
 from .paths import CATEGORIES, SOURCE_FOLDERS, safe_resolve
 from .storage import atomic_write, read_text
@@ -64,6 +60,10 @@ Body `## Sources` entries are evidence files under `.wiki-keeper/sources/` or ho
 3. `update_knowledge` is the only article write path after initialization.
 4. Every mutation appends one line to `.wiki-keeper/wiki/log.md`.
 
+Exception: `wiki-keeper site init --repo . --site-dir site` may scaffold a
+read-only static site outside `.wiki-keeper/` when explicitly requested. That
+site treats `.wiki-keeper/wiki` as build input and must not mutate wiki content.
+
 ## Nightly review
 
 Nightly runs compare `git.last_processed_commit..HEAD`, map changed paths to
@@ -82,80 +82,61 @@ _MAX_AUDIT_COLLISION_ATTEMPTS = 10_000
 def init_corpus(
     repo: Path,
     *,
-    offline: bool = True,
     refresh_bootstrap: bool = False,
-    max_subagents: int = 12,
     dry_run: bool = False,
     since: str | None = None,
-    llm_client: LLMClient | None = None,
-    model_config: InitModelConfig | None = None,
+    client: AsyncOpenAIClient | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     return initialize_wiki(
         repo_root=repo,
-        offline=offline,
         refresh_bootstrap=refresh_bootstrap,
-        max_subagents=max_subagents,
         dry_run=dry_run,
         since=since,
-        llm_client=llm_client,
-        model_config=model_config,
+        client=client,
+        model=model,
     )
 
 
-def initialize_wiki(
+async def initialize_wiki_async(
     *,
     repo_root: Path | str | None = None,
-    offline: bool = False,
     refresh_bootstrap: bool = False,
-    max_subagents: int = 12,
     dry_run: bool = False,
     since: str | None = None,
-    llm_client: LLMClient | None = None,
-    model_config: InitModelConfig | None = None,
+    client: AsyncOpenAIClient | None = None,
+    model: str | None = None,
     cwd: Path | None = None,
     git_runner: Callable[[list[str], Path], str | None] | None = None,
 ) -> dict[str, Any]:
     resolved_root = detect_host_repo_root(explicit_repo=repo_root, cwd=cwd, git_runner=git_runner)
-    model_config = model_config or InitModelConfig.from_env()
+    selected_model = model or init_model()
+    existing_state_path = resolved_root / ".wiki-keeper" / "state.json"
+    if existing_state_path.exists():
+        current_state = _load_state(resolved_root)
+        init_state = current_state.get("initialization", {})
+        already_completed = str(init_state.get("status", "")).strip().lower() == "completed"
+        if already_completed and not refresh_bootstrap and not dry_run:
+            return {
+                "initialized": True,
+                "status": "already_completed",
+                "repo_root": str(resolved_root),
+                "corpus_root": str(resolved_root / ".wiki-keeper"),
+                "inventory_hash": init_state.get("inventory_hash"),
+                "model": init_state.get("model"),
+                "scaffold": {"created": [], "planned": []},
+                "created_pages": [],
+                "skipped_pages": [],
+                "git": current_state.get("git", {}),
+                "dry_run": False,
+            }
+
+    require_api_key("initialization bootstrap")
     scaffold = _plan_or_apply_scaffold(resolved_root, dry_run=dry_run)
     git_baseline = _detect_git_baseline(resolved_root, since=since)
-    inventory = collect_inventory(
-        resolved_root, tool_checkout=Path(__file__).resolve().parents[1]
-    )
-
-    current_state = _load_state(resolved_root)
-    init_state = current_state.get("initialization", {})
-    already_completed = str(init_state.get("status", "")).strip().lower() == "completed"
-
-    if already_completed and not refresh_bootstrap and not dry_run:
-        return {
-            "initialized": True,
-            "status": "already_completed",
-            "repo_root": str(resolved_root),
-            "corpus_root": str(resolved_root / ".wiki-keeper"),
-            "inventory_hash": inventory.inventory_hash,
-            "scaffold": scaffold,
-            "created_pages": [],
-            "skipped_pages": [],
-            "subagent_count": int(init_state.get("subagent_count", 0) or 0),
-            "manager_model": init_state.get("manager_model"),
-            "worker_model": init_state.get("worker_model"),
-            "git": current_state.get("git", {}),
-            "dry_run": False,
-        }
-
-    if offline:
-        bootstrap = deterministic_bootstrap_plan(inventory)
-    else:
-        _require_init_api_key()
-        llm = llm_client or LLMClient()
-        bootstrap = run_bootstrap(
-            llm=llm,
-            repo_root=resolved_root,
-            inventory=inventory,
-            max_subagents=max_subagents,
-            model_config=model_config,
-        )
+    inventory = collect_inventory(resolved_root, tool_checkout=Path(__file__).resolve().parents[1])
+    openai_client = client or create_openai_client()
+    bootstrap = await run_bootstrap(client=openai_client, inventory=inventory, model=selected_model)
 
     if dry_run:
         return _dry_run_payload(
@@ -163,7 +144,6 @@ def initialize_wiki(
             inventory=inventory,
             scaffold=scaffold,
             bootstrap=bootstrap,
-            offline=offline,
             refresh_bootstrap=refresh_bootstrap,
             git_baseline=git_baseline,
         )
@@ -182,9 +162,7 @@ def initialize_wiki(
         "repo_root": str(resolved_root),
         "corpus_root": str(resolved_root / ".wiki-keeper"),
         "inventory_hash": inventory.inventory_hash,
-        "subagent_count": bootstrap.subagent_count,
-        "manager_model": bootstrap.manager_model,
-        "worker_model": bootstrap.worker_model,
+        "model": bootstrap.model,
         "created_pages": write_result["created_pages"],
         "skipped_pages": write_result["skipped_pages"],
         "audit_path": write_result["audit_path"],
@@ -195,6 +173,31 @@ def initialize_wiki(
         "git": write_result["git"],
         "dry_run": False,
     }
+
+
+def initialize_wiki(
+    *,
+    repo_root: Path | str | None = None,
+    refresh_bootstrap: bool = False,
+    dry_run: bool = False,
+    since: str | None = None,
+    client: AsyncOpenAIClient | None = None,
+    model: str | None = None,
+    cwd: Path | None = None,
+    git_runner: Callable[[list[str], Path], str | None] | None = None,
+) -> dict[str, Any]:
+    return asyncio.run(
+        initialize_wiki_async(
+            repo_root=repo_root,
+            refresh_bootstrap=refresh_bootstrap,
+            dry_run=dry_run,
+            since=since,
+            client=client,
+            model=model,
+            cwd=cwd,
+            git_runner=git_runner,
+        )
+    )
 
 
 def detect_host_repo_root(
@@ -247,7 +250,6 @@ def _dry_run_payload(
     inventory: MonorepoInventory,
     scaffold: dict[str, Any],
     bootstrap: BootstrapResult,
-    offline: bool,
     refresh_bootstrap: bool,
     git_baseline: dict[str, str | None],
 ) -> dict[str, Any]:
@@ -256,7 +258,6 @@ def _dry_run_payload(
         "status": "dry_run",
         "repo_root": str(root),
         "corpus_root": str(root / ".wiki-keeper"),
-        "offline": offline,
         "refresh_bootstrap": refresh_bootstrap,
         "git": git_baseline,
         "inventory_hash": inventory.inventory_hash,
@@ -264,9 +265,7 @@ def _dry_run_payload(
         "scaffold": scaffold,
         "planned_pages": [page.rel_path for page in bootstrap.pages],
         "planned_roadmap_entries": bootstrap.roadmap_entries,
-        "subagent_count": bootstrap.subagent_count,
-        "manager_model": bootstrap.manager_model,
-        "worker_model": bootstrap.worker_model,
+        "model": bootstrap.model,
         "open_questions": bootstrap.open_questions,
         "truncated_areas": bootstrap.truncated_areas,
         "dry_run": True,
@@ -341,9 +340,7 @@ def _apply_bootstrap(
     updated_state["initialization"] = {
         "completed_at": _now_iso(),
         "inventory_hash": inventory.inventory_hash,
-        "manager_model": bootstrap.manager_model,
-        "worker_model": bootstrap.worker_model,
-        "subagent_count": int(bootstrap.subagent_count),
+        "model": bootstrap.model,
         "status": "completed",
     }
     updated_state = state_mod.set_git_baseline(
@@ -510,9 +507,7 @@ def _render_initialization_audit(
         f"Run: {_now_iso()}",
         f"Mode: {'refresh-bootstrap' if refresh_bootstrap else 'initial-bootstrap'}",
         f"Inventory hash: `{inventory.inventory_hash}`",
-        f"Manager model: `{bootstrap.manager_model}`",
-        f"Worker model: `{bootstrap.worker_model}`",
-        f"Subagent count: {bootstrap.subagent_count}",
+        f"Model: `{bootstrap.model}`",
         "",
         "## Inventory Totals",
         f"- Discovered paths: {inventory.totals['discovered_paths']}",
@@ -520,16 +515,8 @@ def _render_initialization_audit(
         f"- Oversized skipped: {inventory.totals['oversized_paths']}",
         f"- Binary skipped: {inventory.totals['binary_paths']}",
         "",
-        "## Packet Plan",
+        "## Pages Created",
     ]
-    if bootstrap.packet_plan:
-        for packet in bootstrap.packet_plan:
-            lines.append(
-                f"- `{packet['packet_id']}` {packet['focus']} ({len(packet['paths'])} paths)"
-            )
-    else:
-        lines.append("- offline deterministic plan (no model packets)")
-    lines.extend(["", "## Pages Created"])
     if created_pages:
         lines.extend(f"- `{item}`" for item in created_pages)
     else:
@@ -555,15 +542,6 @@ def _render_initialization_audit(
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _require_init_api_key() -> None:
-    if os.environ.get("OPENAI_API_KEY"):
-        return
-    raise RuntimeError(
-        "OPENAI_API_KEY is required for initialization bootstrap. "
-        "Run with --offline to scaffold without model calls."
-    )
 
 
 @contextlib.contextmanager

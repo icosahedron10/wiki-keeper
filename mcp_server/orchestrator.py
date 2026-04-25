@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .llm import LLMClient
-
-
 def run_orchestrator(
-    llm: LLMClient,
+    llm,
     *,
     article_markdown: str,
     reader_a: str,

@@ -3,143 +3,74 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, cast
 
 
-DEFAULT_ORCHESTRATOR_MODEL = "gpt-5-nano"
-DEFAULT_READER_MODEL = "gpt-5-nano"
-DEFAULT_ORCHESTRATOR_REASONING = "medium"
-DEFAULT_READER_REASONING = "low"
+DEFAULT_NIGHTLY_MODEL = "gpt-5.4-nano"
+DEFAULT_INIT_MODEL = "gpt-5.4-mini"
 
 
-def require_api_key() -> None:
+class ResponsesResource(Protocol):
+    async def create(self, **kwargs: Any) -> Any: ...
+
+
+class AsyncOpenAIClient(Protocol):
+    @property
+    def responses(self) -> ResponsesResource: ...
+
+
+def nightly_model() -> str:
+    return os.environ.get("WIKI_KEEPER_NIGHTLY_MODEL", DEFAULT_NIGHTLY_MODEL)
+
+
+def init_model() -> str:
+    return os.environ.get("WIKI_KEEPER_INIT_MODEL", DEFAULT_INIT_MODEL)
+
+
+def require_api_key(context: str) -> None:
     if not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError(f"OPENAI_API_KEY is required for {context}")
+
+
+def create_openai_client() -> AsyncOpenAIClient:
+    try:
+        from openai import AsyncOpenAI
+    except ImportError as exc:  # pragma: no cover - dependency guard
         raise RuntimeError(
-            "OPENAI_API_KEY is required for run-nightly and run_review"
-        )
+            "openai package is required. Install dependencies with `pip install -e .`."
+        ) from exc
+    return cast(AsyncOpenAIClient, AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY")))
 
 
-@dataclass
-class ModelConfig:
-    orchestrator_model: str = DEFAULT_ORCHESTRATOR_MODEL
-    reader_model: str = DEFAULT_READER_MODEL
-    orchestrator_reasoning: str = DEFAULT_ORCHESTRATOR_REASONING
-    reader_reasoning: str = DEFAULT_READER_REASONING
-
-    @classmethod
-    def from_env(cls) -> "ModelConfig":
-        return cls(
-            orchestrator_model=os.environ.get(
-                "WIKI_KEEPER_ORCHESTRATOR_MODEL", DEFAULT_ORCHESTRATOR_MODEL
-            ),
-            reader_model=os.environ.get(
-                "WIKI_KEEPER_READER_MODEL", DEFAULT_READER_MODEL
-            ),
-            orchestrator_reasoning=os.environ.get(
-                "WIKI_KEEPER_ORCHESTRATOR_REASONING",
-                DEFAULT_ORCHESTRATOR_REASONING,
-            ),
-            reader_reasoning=os.environ.get(
-                "WIKI_KEEPER_READER_REASONING", DEFAULT_READER_REASONING
-            ),
-        )
-
-
-class LLMClient:
-    def __init__(self, *, client: Any | None = None, config: ModelConfig | None = None):
-        self.config = config or ModelConfig.from_env()
-        self._client = client
-
-    def _openai_client(self) -> Any:
-        if self._client is not None:
-            return self._client
-        try:
-            from openai import OpenAI
-        except ImportError as exc:  # pragma: no cover - dependency guard
-            raise RuntimeError(
-                "openai package is required for nightly review. "
-                "Install dependencies with `pip install -e .`."
-            ) from exc
-        self._client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        return self._client
-
-    def complete_text(
-        self, *, system_prompt: str, user_prompt: str, model: str, reasoning: str
-    ) -> str:
-        client = self._openai_client()
-        if hasattr(client, "complete_text"):
-            return client.complete_text(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                model=model,
-                reasoning=reasoning,
-            )
-        response = client.responses.create(
-            model=model,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            reasoning={"effort": reasoning},
-        )
-        return _response_text(response)
-
-    def complete_json(
-        self, *, system_prompt: str, user_prompt: str, model: str, reasoning: str
-    ) -> dict[str, Any]:
-        text = self.complete_text(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            model=model,
-            reasoning=reasoning,
-        )
-        return _parse_json_object(text)
-
-    def complete_json_schema(
-        self,
-        *,
-        system_prompt: str,
-        user_prompt: str,
-        model: str,
-        reasoning: str,
-        schema_name: str,
-        schema: dict[str, Any],
-    ) -> dict[str, Any]:
-        client = self._openai_client()
-        if hasattr(client, "complete_json_schema"):
-            return client.complete_json_schema(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                model=model,
-                reasoning=reasoning,
-                schema_name=schema_name,
-                schema=schema,
-            )
-        response = client.responses.create(
-            model=model,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            reasoning={"effort": reasoning},
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": schema_name,
-                    "strict": True,
-                    "schema": schema,
-                }
-            },
-        )
-        parsed = _response_parsed_json(response)
-        if parsed is not None:
-            return parsed
-        text = _response_text(response)
-        return _parse_json_object(text)
+async def complete_json_schema(
+    client: AsyncOpenAIClient,
+    *,
+    model: str,
+    instructions: str,
+    input_text: str,
+    schema_name: str,
+    schema: dict[str, Any],
+) -> dict[str, Any]:
+    response = await client.responses.create(
+        model=model,
+        instructions=instructions,
+        input=input_text,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": schema_name,
+                "strict": True,
+                "schema": schema,
+            }
+        },
+    )
+    parsed = response_parsed_json(response)
+    if parsed is not None:
+        return parsed
+    return parse_json_object(response_text(response))
 
 
-def _response_text(response: Any) -> str:
+def response_text(response: Any) -> str:
     if isinstance(response, dict):
         if isinstance(response.get("output_text"), str):
             return response["output_text"]
@@ -165,21 +96,18 @@ def _response_text(response: Any) -> str:
     return "\n".join(chunks).strip()
 
 
-def _response_parsed_json(response: Any) -> dict[str, Any] | None:
+def response_parsed_json(response: Any) -> dict[str, Any] | None:
     output = response.get("output", []) if isinstance(response, dict) else getattr(response, "output", [])
     for item in output or []:
         content = item.get("content") if isinstance(item, dict) else getattr(item, "content", [])
         for part in content or []:
-            if isinstance(part, dict):
-                parsed = part.get("parsed")
-            else:
-                parsed = getattr(part, "parsed", None)
+            parsed = part.get("parsed") if isinstance(part, dict) else getattr(part, "parsed", None)
             if isinstance(parsed, dict):
                 return parsed
     return None
 
 
-def _parse_json_object(text: str) -> dict[str, Any]:
+def parse_json_object(text: str) -> dict[str, Any]:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:

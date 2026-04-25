@@ -8,6 +8,7 @@
 - Use article frontmatter `sources` globs for host-repo evidence in nightly reviews.
 - Run `wiki-keeper validate --repo .` before large wiki edits.
 - Use `wiki-keeper run-nightly --repo . --budget 4` in automation for git-delta drift audits.
+- `wiki-keeper site init --repo . --site-dir site` is the explicit exception that may scaffold a public static site outside `.wiki-keeper/`.
 - Treat `ingest_source` and `propose_ingest` as future V1.1 capabilities, not V1 tools.
 - Never edit host repository files from wiki-keeper flows.
 ```

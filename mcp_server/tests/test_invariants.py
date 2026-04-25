@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -114,7 +115,7 @@ def test_removed_ingest_tools_are_unavailable():
     assert not hasattr(tools, "ingest_source")
     assert not hasattr(tools, "propose_ingest")
     with pytest.raises(ValueError):
-        server._dispatch("ingest_source", {"source_path": "prs/pr_1.md"})
+        asyncio.run(server.dispatch_tool("ingest_source", {"source_path": "prs/pr_1.md"}))
 
 
 def test_query_wiki_keyword_ranks_title_matches(wiki_root: Path):
@@ -136,10 +137,10 @@ def test_query_wiki_non_positive_top_k_returns_no_hits(wiki_root: Path):
 
 
 def test_server_tool_schema_allows_zero_limits():
-    query_tool = next(t for t in server._TOOLS if t.name == "query_wiki")
-    audits_tool = next(t for t in server._TOOLS if t.name == "read_audits")
-    assert query_tool.inputSchema["properties"]["top_k"]["minimum"] == 0
-    assert audits_tool.inputSchema["properties"]["limit"]["minimum"] == 0
+    query_tool = server.TOOLS_BY_NAME["query_wiki"]
+    audits_tool = server.TOOLS_BY_NAME["read_audits"]
+    assert query_tool.input_schema["properties"]["top_k"]["minimum"] == 0
+    assert audits_tool.input_schema["properties"]["limit"]["minimum"] == 0
 
 
 def test_atomic_append_preserves_existing_content(wiki_root: Path):

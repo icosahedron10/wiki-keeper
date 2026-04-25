@@ -74,6 +74,10 @@ Articles without frontmatter are valid and are skipped by nightly review.
 5. Host-repo files are never modified.
 6. `update_knowledge` is the only write path for wiki article content.
 
+Exception: `wiki-keeper site init --repo . --site-dir site` may scaffold a
+read-only static site outside `.wiki-keeper/` when explicitly requested. That
+site treats `.wiki-keeper/wiki` as build input and must not mutate wiki content.
+
 ## Nightly review rules
 
 - Validate corpus before model calls.

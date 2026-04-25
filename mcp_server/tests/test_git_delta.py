@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -68,26 +67,62 @@ Old details.
 """
 
 
-class FakeLLM:
-    def __init__(self, *, confidence: str = "low", decision: str = "audit_only"):
-        self.config = SimpleNamespace(
-            reader_model="gpt-5-nano",
-            reader_reasoning="low",
-            orchestrator_model="gpt-5-nano",
-            orchestrator_reasoning="medium",
+class FakeResponses:
+    def __init__(self, decisions: list[dict[str, str]]):
+        self.decisions = decisions
+        self.calls = []
+
+    async def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"output_text": json.dumps({"article_decisions": self.decisions})}
+
+
+class FakeClient:
+    def __init__(self, *article_ids: str):
+        self.responses = FakeResponses(
+            [
+                {
+                    "article_id": article_id,
+                    "decision": "audit_only",
+                    "confidence": "low",
+                    "rationale": "test decision",
+                    "patch_content": "",
+                    "audit_notes": [],
+                }
+                for article_id in article_ids
+            ]
         )
-        self.decision = {
-            "confidence": confidence,
-            "decision": decision,
-            "patch_content": "",
-            "rationale": "test decision",
+
+
+class FakeInitResponses:
+    async def create(self, **kwargs):
+        return {
+            "output_text": json.dumps(
+                {
+                    "pages": [
+                        {
+                            "category": "concepts",
+                            "title": "Repository Overview",
+                            "summary": "Repo",
+                            "key_facts": ["Fact"],
+                            "details": ["Detail"],
+                            "relationships": ["Related to [[Build and Test]]"],
+                            "sources": ["pyproject.toml"],
+                            "open_questions": ["Question"],
+                            "confidence": "medium",
+                            "frontmatter_sources": [],
+                        }
+                    ],
+                    "roadmap_entries": ["concepts/Repository Overview"],
+                    "open_questions": [],
+                    "truncated_areas": [],
+                }
+            )
         }
 
-    def complete_text(self, **kwargs):  # noqa: ARG002
-        return "reader findings"
 
-    def complete_json_schema(self, **kwargs):  # noqa: ARG002
-        return dict(self.decision)
+class FakeInitClient:
+    responses = FakeInitResponses()
 
 
 def _require_git() -> None:
@@ -140,7 +175,12 @@ def test_initialize_records_current_head_as_git_baseline(tmp_path):
     (tmp_path / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
     head = _commit_all(tmp_path, "baseline")
 
-    out = initialize_wiki(repo_root=tmp_path, offline=True)
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    try:
+        out = initialize_wiki(repo_root=tmp_path, client=FakeInitClient())
+    finally:
+        monkeypatch.undo()
 
     assert out["git"]["last_processed_commit"] == head
     raw = json.loads(read_text(tmp_path / ".wiki-keeper" / "state.json"))
@@ -211,26 +251,24 @@ def test_run_nightly_reviews_mapped_git_delta_and_updates_state(wiki_root, monke
     head = _commit_all(wiki_root, "change auth")
 
     out = nightly.run_nightly(
-        budget=1,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
 
     assert out["outcome"] == "audit_only"
     assert out["commit_range"]["since"] == baseline
     assert out["commit_range"]["until"] == head
-    assert out["results"][0]["changed_paths"] == ["services/auth/handler.py"]
+    assert out["article_decisions"][0]["article_id"] == "auth-overview"
     assert state.load()["git"]["last_processed_commit"] == head
 
     second = nightly.run_nightly(
-        budget=1,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
     assert second["outcome"] == "no_changes"
 
 
-def test_run_nightly_partial_budget_does_not_advance_processed_commit(wiki_root, monkeypatch):
+def test_run_nightly_reviews_whole_range_and_advances_processed_commit(wiki_root, monkeypatch):
     _seed_git_review_repo(wiki_root)
     (wiki_root / "services" / "billing").mkdir(parents=True, exist_ok=True)
     (wiki_root / "services" / "billing" / "handler.py").write_text(
@@ -255,34 +293,21 @@ def test_run_nightly_partial_budget_does_not_advance_processed_commit(wiki_root,
     head = _commit_all(wiki_root, "change auth and billing")
 
     out = nightly.run_nightly(
-        budget=1,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview", "billing-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
 
     git_state = state.load()["git"]
-    assert out["outcome"] == "partial"
-    assert out["skipped_matches"]
+    assert out["outcome"] == "audit_only"
+    assert {item["article_id"] for item in out["article_decisions"]} == {"auth-overview", "billing-overview"}
     assert git_state["last_seen_commit"] == head
-    assert git_state["last_processed_commit"] == baseline
+    assert git_state["last_processed_commit"] == head
 
     second = nightly.run_nightly(
-        budget=1,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview", "billing-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
-
-    assert second["outcome"] == "audit_only"
-    assert second["results"][0]["article_id"] == "billing-overview"
-    assert second["already_processed"] == 1
-    assert state.load()["git"]["last_processed_commit"] == head
-
-    third = nightly.run_nightly(
-        budget=1,
-        llm_client=FakeLLM(),
-        update_knowledge_fn=tools.update_knowledge,
-    )
-    assert third["outcome"] == "no_changes"
+    assert second["outcome"] == "no_changes"
 
 
 def test_run_nightly_unmapped_delta_writes_audit_without_api_key(wiki_root, monkeypatch):
@@ -292,12 +317,12 @@ def test_run_nightly_unmapped_delta_writes_audit_without_api_key(wiki_root, monk
     (wiki_root / "docs" / "readme.md").write_text("# docs\n", encoding="utf-8")
     _commit_all(wiki_root, "change docs")
 
-    out = nightly.run_nightly(budget=1, update_knowledge_fn=tools.update_knowledge)
+    out = nightly.run_nightly(update_knowledge_fn=tools.update_knowledge)
 
     assert out["outcome"] == "audit_only"
     assert out["matches"] == []
-    assert out["audit_path"]
-    assert (wiki_root / out["audit_path"]).is_file()
+    assert out["audit_paths"]
+    assert (wiki_root / out["audit_paths"][0]).is_file()
 
 
 def test_run_nightly_reviews_deleted_only_mapped_source(wiki_root, monkeypatch):
@@ -307,14 +332,12 @@ def test_run_nightly_reviews_deleted_only_mapped_source(wiki_root, monkeypatch):
     _commit_all(wiki_root, "delete auth handler")
 
     out = nightly.run_nightly(
-        budget=1,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
 
     assert out["outcome"] == "audit_only"
-    assert out["results"][0]["article_id"] == "auth-overview"
-    assert out["results"][0]["changed_paths"] == ["services/auth/handler.py"]
+    assert out["article_decisions"][0]["article_id"] == "auth-overview"
 
 
 def test_missing_baseline_commit_recovers_by_rebaselining(wiki_root):
@@ -324,9 +347,8 @@ def test_missing_baseline_commit_recovers_by_rebaselining(wiki_root):
     state.save(current)
 
     out = nightly.run_nightly(
-        budget=1,
         dry_run=False,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
 
@@ -345,13 +367,12 @@ def test_run_nightly_dry_run_leaves_state_unchanged(wiki_root):
     before = read_text(state_path())
 
     out = nightly.run_nightly(
-        budget=1,
         dry_run=True,
-        llm_client=FakeLLM(),
+        client=FakeClient("auth-overview"),
         update_knowledge_fn=tools.update_knowledge,
     )
 
     assert out["outcome"] == "dry_run"
-    assert out["planned_reviews"][0]["page_name"] == "modules/Auth Service"
+    assert out["matches"][0]["page_name"] == "modules/Auth Service"
     assert read_text(state_path()) == before
     assert state.load()["git"]["last_processed_commit"] == baseline

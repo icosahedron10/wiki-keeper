@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+import json
 
 import pytest
 
-from mcp_server import nightly, tools
-from mcp_server.paths import roadmap_path
-from mcp_server.storage import atomic_write, read_text
+from mcp_server import git_delta, nightly, tools
+from mcp_server.storage import read_text
 
 
 ARTICLE_WITH_FRONTMATTER = """---
@@ -59,67 +58,68 @@ Updated details.
 """
 
 
-class FakeLLM:
-    def __init__(self, *, confidence: str, decision: str, patch_content: str):
-        self.config = SimpleNamespace(
-            reader_model="gpt-5-nano",
-            reader_reasoning="low",
-            orchestrator_model="gpt-5-mini",
-            orchestrator_reasoning="medium",
-        )
-        self._decision = {
-            "confidence": confidence,
-            "decision": decision,
-            "patch_content": patch_content,
-            "rationale": "synthetic decision",
-        }
+class FakeResponses:
+    def __init__(self, payload: dict):
+        self.payload = payload
+        self.calls = []
 
-    def complete_text(self, **kwargs):  # noqa: ARG002
-        return "synthetic reader findings"
+    async def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"output_text": json.dumps(self.payload)}
 
-    def complete_json(self, **kwargs):  # noqa: ARG002
-        return dict(self._decision)
 
-    def complete_json_schema(self, **kwargs):  # noqa: ARG002
-        return dict(self._decision)
+class FakeClient:
+    def __init__(self, payload: dict):
+        self.responses = FakeResponses(payload)
 
 
 def _seed_review_target(wiki_root):
-    atomic_write(roadmap_path(), "- modules/Auth Service\n")
     (wiki_root / "services" / "auth").mkdir(parents=True, exist_ok=True)
-    (wiki_root / "services" / "auth" / "handler.go").write_text(
-        "package auth\n\nfunc Login() {}\n",
-        encoding="utf-8",
-    )
+    (wiki_root / "services" / "auth" / "handler.go").write_text("package auth\n\nfunc Login() {}\n", encoding="utf-8")
     tools.update_knowledge("modules/Auth Service", ARTICLE_WITH_FRONTMATTER, mode="replace")
 
 
-def test_nightly_high_confidence_applies_patch(wiki_root, monkeypatch):
+def _range():
+    return git_delta.GitRange(since="abc", until="def", default_branch="main", changed_paths=["services/auth/handler.go"])
+
+
+def _patch_payload(confidence: str = "high", patch_content: str = PATCHED_BODY) -> dict:
+    return {
+        "article_decisions": [
+            {
+                "article_id": "auth-overview",
+                "decision": "patch",
+                "confidence": confidence,
+                "rationale": "synthetic decision",
+                "patch_content": patch_content,
+                "audit_notes": ["reviewed once"],
+            }
+        ]
+    }
+
+
+def test_nightly_whole_range_call_applies_high_confidence_patch(wiki_root, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     _seed_review_target(wiki_root)
-    fake = FakeLLM(confidence="high", decision="patch", patch_content=PATCHED_BODY)
-    out = nightly.run_review(
-        article_id=None,
-        llm_client=fake,
-        update_knowledge_fn=tools.update_knowledge,
-    )
+    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (_range(), None))
+    monkeypatch.setattr(git_delta, "diff_source_files", lambda *_args, **_kwargs: [])
+    fake = FakeClient(_patch_payload())
+    out = nightly.run_nightly(client=fake, update_knowledge_fn=tools.update_knowledge)
     assert out["outcome"] == "patched"
-    page = tools.get_page("modules/Auth Service")
-    assert "Updated summary from nightly pass." in page["content"]
-    assert out["audit_path"]
+    assert out["patch_status"] == "patched"
+    assert len(fake.responses.calls) == 1
+    assert fake.responses.calls[0]["model"] == "gpt-5.4-nano"
+    assert "Updated summary from nightly pass." in tools.get_page("modules/Auth Service")["content"]
 
 
 def test_nightly_low_confidence_is_audit_only(wiki_root, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     _seed_review_target(wiki_root)
-    fake = FakeLLM(confidence="low", decision="patch", patch_content=PATCHED_BODY)
-    before = read_text((wiki_root / ".wiki-keeper" / "wiki" / "modules" / "Auth Service.md"))
-    out = nightly.run_review(
-        article_id=None,
-        llm_client=fake,
-        update_knowledge_fn=tools.update_knowledge,
-    )
-    after = read_text((wiki_root / ".wiki-keeper" / "wiki" / "modules" / "Auth Service.md"))
+    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (_range(), None))
+    monkeypatch.setattr(git_delta, "diff_source_files", lambda *_args, **_kwargs: [])
+    before = read_text(wiki_root / ".wiki-keeper" / "wiki" / "modules" / "Auth Service.md")
+    out = nightly.run_nightly(client=FakeClient(_patch_payload(confidence="low")), update_knowledge_fn=tools.update_knowledge)
+    after = read_text(wiki_root / ".wiki-keeper" / "wiki" / "modules" / "Auth Service.md")
     assert out["outcome"] == "audit_only"
     assert before == after
 
@@ -127,26 +127,42 @@ def test_nightly_low_confidence_is_audit_only(wiki_root, monkeypatch):
 def test_nightly_rejects_non_schema_patch(wiki_root, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     _seed_review_target(wiki_root)
-    fake = FakeLLM(
-        confidence="high",
-        decision="patch",
-        patch_content="# Auth Service\n\nNo required sections.\n",
-    )
-    out = nightly.run_review(
-        article_id=None,
-        llm_client=fake,
+    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (_range(), None))
+    monkeypatch.setattr(git_delta, "diff_source_files", lambda *_args, **_kwargs: [])
+    out = nightly.run_nightly(
+        client=FakeClient(_patch_payload(patch_content="# Auth Service\n\nNo required sections.\n")),
         update_knowledge_fn=tools.update_knowledge,
     )
     assert out["outcome"] == "audit_only"
 
 
+def test_nightly_no_changed_paths_avoids_model_call(wiki_root, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    _seed_review_target(wiki_root)
+    empty = git_delta.GitRange(since="abc", until="def", default_branch="main", changed_paths=[])
+    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (empty, None))
+    fake = FakeClient(_patch_payload())
+    out = nightly.run_nightly(client=fake, update_knowledge_fn=tools.update_knowledge)
+    assert out["outcome"] == "no_changes"
+    assert fake.responses.calls == []
+
+
+def test_nightly_unmapped_changes_write_audit_without_model_call(wiki_root, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    change = git_delta.GitRange(since="abc", until="def", default_branch="main", changed_paths=["other/file.py"])
+    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (change, None))
+    fake = FakeClient(_patch_payload())
+    out = nightly.run_nightly(client=fake, update_knowledge_fn=tools.update_knowledge)
+    assert out["outcome"] == "audit_only"
+    assert out["audit_paths"]
+    assert fake.responses.calls == []
+
+
 def test_nightly_missing_api_key_fails_before_model_call(wiki_root, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     _seed_review_target(wiki_root)
-    fake = FakeLLM(confidence="high", decision="patch", patch_content=PATCHED_BODY)
+    monkeypatch.setattr(git_delta, "build_range", lambda **_kwargs: (_range(), None))
+    fake = FakeClient(_patch_payload())
     with pytest.raises(RuntimeError):
-        nightly.run_review(
-            article_id=None,
-            llm_client=fake,
-            update_knowledge_fn=tools.update_knowledge,
-        )
+        nightly.run_nightly(client=fake, update_knowledge_fn=tools.update_knowledge)
+    assert fake.responses.calls == []

@@ -9,6 +9,7 @@ from pathlib import Path
 from . import nightly as nightly_mod
 from . import server, tools
 from .init_corpus import init_corpus
+from .site_scaffold import init_site
 from .storage import atomic_write
 
 
@@ -20,20 +21,23 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     init_p = sub.add_parser("init", help="Initialize .wiki-keeper corpus.")
     init_p.add_argument("--repo", default=".")
-    mode = init_p.add_mutually_exclusive_group()
-    mode.add_argument("--offline", action="store_true", help="Use deterministic local bootstrap.")
-    mode.add_argument("--online", action="store_true", help="Use model-assisted bootstrap.")
     init_p.add_argument("--dry-run", action="store_true")
     init_p.add_argument("--refresh-bootstrap", action="store_true")
-    init_p.add_argument("--max-subagents", type=int, default=12)
     init_p.add_argument("--since", help="Baseline commit SHA/ref for the first nightly run.")
+
+    site_p = sub.add_parser("site", help="Manage the optional static public wiki site.")
+    site_sub = site_p.add_subparsers(dest="site_cmd", required=True)
+    site_init_p = site_sub.add_parser("init", help="Scaffold the static Next.js wiki site.")
+    site_init_p.add_argument("--repo", default=".")
+    site_init_p.add_argument("--site-dir", default="site")
+    site_init_p.add_argument("--dry-run", action="store_true")
+    site_init_p.add_argument("--force", action="store_true")
 
     val_p = sub.add_parser("validate", help="Validate corpus and lint wiki.")
     val_p.add_argument("--repo", default=".")
 
     nightly_p = sub.add_parser("run-nightly", help="Run nightly freshness pass.")
     nightly_p.add_argument("--repo", default=".")
-    nightly_p.add_argument("--budget", type=int, default=1)
     nightly_p.add_argument("--since", help="Override start commit SHA/ref.")
     nightly_p.add_argument("--until", help="Override end commit SHA/ref.")
     nightly_p.add_argument("--dry-run", action="store_true")
@@ -80,12 +84,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "init":
         out = init_corpus(
             Path(args.repo),
-            offline=bool(args.offline) or not bool(args.online),
             refresh_bootstrap=bool(args.refresh_bootstrap),
-            max_subagents=int(args.max_subagents),
             dry_run=bool(args.dry_run),
             since=args.since,
         )
+        print(json.dumps(out, indent=2, default=str))
+        return 0
+
+    if args.cmd == "site":
+        if args.site_cmd == "init":
+            out = init_site(
+                Path(args.repo),
+                site_dir=args.site_dir,
+                dry_run=bool(args.dry_run),
+                force=bool(args.force),
+            )
+        else:  # pragma: no cover
+            raise SystemExit(f"unknown site command {args.site_cmd}")
         print(json.dumps(out, indent=2, default=str))
         return 0
 
@@ -98,7 +113,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "run-nightly":
         _set_repo_root(args.repo)
         out = nightly_mod.run_nightly(
-            budget=int(args.budget),
             since=args.since,
             until=args.until,
             dry_run=bool(args.dry_run),

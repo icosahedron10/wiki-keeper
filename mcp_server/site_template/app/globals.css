@@ -1,0 +1,377 @@
+:root {
+  color-scheme: dark;
+  --bg: #1a1612;
+  --fg: #e8e0d4;
+  --muted: #9a8e7f;
+  --accent: #c9a55a;
+  --accent-light: #2d261e;
+  --border: #3a322a;
+  --code-bg: #241e18;
+  --sidebar-bg: #161210;
+  --badge-current: #6b8f5e;
+  --badge-draft: #b8944a;
+  --badge-stale: #a65a4a;
+}
+
+.theme-slate {
+  --bg: #111418;
+  --fg: #e4e9ef;
+  --muted: #91a0ad;
+  --accent: #7ab7d8;
+  --accent-light: #1d2b34;
+  --border: #2a343d;
+  --code-bg: #171d23;
+  --sidebar-bg: #0d1014;
+  --badge-current: #5c9d82;
+  --badge-draft: #c0974f;
+  --badge-stale: #bd6f63;
+}
+
+.theme-forest {
+  --bg: #121713;
+  --fg: #e1e8d8;
+  --muted: #98a78f;
+  --accent: #9fc46d;
+  --accent-light: #202a1f;
+  --border: #303b2b;
+  --code-bg: #1a2119;
+  --sidebar-bg: #0e120d;
+  --badge-current: #6d9d68;
+  --badge-draft: #b99a52;
+  --badge-stale: #b76555;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  color: var(--fg);
+  background: var(--bg);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  line-height: 1.7;
+}
+
+::selection {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+code,
+pre {
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.site-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  flex: 0 0 260px;
+  overflow: auto;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 2rem 1.25rem;
+}
+
+.sidebar-title {
+  display: block;
+  margin-bottom: 2rem;
+  color: var(--fg);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.sidebar div {
+  margin-bottom: 1.5rem;
+}
+
+.sidebar h2,
+.page-footer h3 {
+  margin-bottom: 0.5rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.sidebar ul {
+  list-style: none;
+}
+
+.sidebar a {
+  display: block;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  color: var(--fg);
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.sidebar a:hover {
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.main-content {
+  width: 100%;
+  max-width: 52rem;
+  padding: 2rem 3rem;
+}
+
+article {
+  width: 100%;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header h1 {
+  margin-bottom: 0.5rem;
+  font-size: 2.25rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.page-header p {
+  margin-top: 0.5rem;
+  color: var(--muted);
+}
+
+.page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.badge,
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.badge {
+  color: var(--bg);
+  text-transform: lowercase;
+}
+
+.badge-current {
+  background: var(--badge-current);
+}
+
+.badge-draft {
+  background: var(--badge-draft);
+}
+
+.badge-stale {
+  background: var(--badge-stale);
+}
+
+.tag {
+  color: var(--muted);
+  background: var(--code-bg);
+}
+
+.wiki-body h1 {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+
+.wiki-body h2 {
+  margin: 2rem 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+
+.wiki-body h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.wiki-body h4 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.wiki-body p {
+  margin: 0.75rem 0;
+}
+
+.wiki-body ul,
+.wiki-body ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.wiki-body li {
+  margin: 0.25rem 0;
+}
+
+.wiki-body a,
+.page-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.wiki-body a:hover,
+.page-footer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.wiki-body :not(pre) > code {
+  border-radius: 4px;
+  padding: 0.15rem 0.35rem;
+  background: var(--code-bg);
+}
+
+.wiki-body pre {
+  overflow: auto;
+  margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  background: var(--code-bg);
+}
+
+.wiki-body pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.wiki-body table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+}
+
+.wiki-body th,
+.wiki-body td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.wiki-body th {
+  background: var(--code-bg);
+}
+
+.wiki-body blockquote {
+  margin: 1rem 0;
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  color: var(--muted);
+  background: var(--sidebar-bg);
+}
+
+.wiki-body .broken-link {
+  color: var(--badge-stale);
+  text-decoration: line-through;
+}
+
+.wiki-body .source-ref code {
+  color: var(--accent);
+}
+
+.wiki-body .source-missing {
+  outline: 1px solid var(--badge-stale);
+}
+
+.page-footer {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.page-footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.page-footer li {
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  background: var(--code-bg);
+}
+
+.empty-state {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  background: var(--code-bg);
+}
+
+@media (max-width: 768px) {
+  .site-layout {
+    display: block;
+  }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem;
+  }
+
+  .main-content {
+    max-width: none;
+    padding: 1.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.9rem;
+  }
+}

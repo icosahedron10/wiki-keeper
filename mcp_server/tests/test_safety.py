@@ -2,40 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from mcp_server import nightly, tools
+from mcp_server import git_delta, tools
 from mcp_server.paths import roadmap_path
 from mcp_server.storage import atomic_write
-
-
-class CountingLLM:
-    def __init__(self):
-        self.calls = 0
-        self.config = type(
-            "Cfg",
-            (),
-            {
-                "reader_model": "gpt-5-nano",
-                "reader_reasoning": "low",
-                "orchestrator_model": "gpt-5-mini",
-                "orchestrator_reasoning": "medium",
-            },
-        )()
-
-    def complete_text(self, **kwargs):  # noqa: ARG002
-        self.calls += 1
-        return "reader"
-
-    def complete_json(self, **kwargs):  # noqa: ARG002
-        self.calls += 1
-        return {
-            "confidence": "low",
-            "decision": "audit_only",
-            "patch_content": "",
-            "rationale": "test",
-        }
-
-    def complete_json_schema(self, **kwargs):  # noqa: ARG002
-        return self.complete_json(**kwargs)
 
 
 def _seed(wiki_root):
@@ -48,8 +17,7 @@ def test_update_knowledge_rejects_path_escape(wiki_root):
         tools.update_knowledge("modules/../Escape", "# bad\n")
 
 
-def test_nightly_rejects_glob_escape_before_llm(wiki_root, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "k")
+def test_git_delta_glob_escape_does_not_match_host_paths(wiki_root):
     _seed(wiki_root)
     atomic_write(roadmap_path(), "- modules/Auth Service\n")
     tools.update_knowledge(
@@ -63,11 +31,4 @@ def test_nightly_rejects_glob_escape_before_llm(wiki_root, monkeypatch):
             "# Auth Service\n\n## Summary\nx\n\n## Open Questions\n- None.\n"
         ),
     )
-    llm = CountingLLM()
-    with pytest.raises(RuntimeError):
-        nightly.run_review(
-            article_id=None,
-            llm_client=llm,
-            update_knowledge_fn=tools.update_knowledge,
-        )
-    assert llm.calls == 0
+    assert git_delta.map_changed_paths_to_articles(["services/auth/handler.go"]) == []

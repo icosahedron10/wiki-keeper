@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from .llm import LLMClient
 from .source_scan import SourceFile
 
 
@@ -11,7 +10,7 @@ _SYSTEM = (
 
 
 def run_reader_a(
-    llm: LLMClient,
+    llm,
     *,
     article_markdown: str,
     source_files: list[SourceFile],
@@ -33,7 +32,7 @@ def run_reader_a(
 
 
 def run_reader_b(
-    llm: LLMClient,
+    llm,
     *,
     article_markdown: str,
     source_files: list[SourceFile],
