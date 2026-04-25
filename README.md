@@ -104,8 +104,8 @@ wiki-keeper tools --repo . list                          # scripting surface
 3. Collect changed paths and diffs.
 4. Map paths to articles through frontmatter `sources`.
 5. Write audit-only notes for unmapped deltas.
-6. For mapped articles, run two reader calls.
-7. Run the strict-schema orchestrator call.
+6. For mapped articles, run one strict-schema nightly review call.
+7. Normalize each article decision from the review payload.
 8. Write audit notes to `.wiki-keeper/audits/YYYY-MM-DD/`.
 9. Apply patches **only** when confidence is `high`, via `update_knowledge`.
 10. Update git run history in `state.json`.
@@ -118,23 +118,17 @@ wiki-keeper tools --repo . list                          # scripting surface
 
 `WIKI_KEEPER_ROOT` overrides the host-repo root (set automatically by `--repo`).
 
-**Nightly models** — defaults: `gpt-5-nano` for reader and orchestrator, `medium` orchestrator reasoning, `low` reader reasoning.
+**Nightly model** — default: `gpt-5.4-nano` for the single-pass nightly reviewer.
 
 | Variable | Default |
 |---|---|
-| `WIKI_KEEPER_ORCHESTRATOR_MODEL` | `gpt-5-nano` |
-| `WIKI_KEEPER_READER_MODEL` | `gpt-5-nano` |
-| `WIKI_KEEPER_ORCHESTRATOR_REASONING` | `medium` |
-| `WIKI_KEEPER_READER_REASONING` | `low` |
+| `WIKI_KEEPER_NIGHTLY_MODEL` | `gpt-5.4-nano` |
 
-**Online init models** — defaults: `gpt-5.4-mini` for both roles.
+**Online init model** — default: `gpt-5.4-mini`.
 
 | Variable | Default |
 |---|---|
-| `WIKI_KEEPER_INIT_MANAGER_MODEL` | `gpt-5.4-mini` |
-| `WIKI_KEEPER_INIT_WORKER_MODEL` | `gpt-5.4-mini` |
-| `WIKI_KEEPER_INIT_MANAGER_REASONING` | `medium` |
-| `WIKI_KEEPER_INIT_WORKER_REASONING` | `low` |
+| `WIKI_KEEPER_INIT_MODEL` | `gpt-5.4-mini` |
 
 ## Repository layout
 
